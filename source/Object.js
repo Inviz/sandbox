@@ -269,12 +269,14 @@ Game.Object.walk = function(object, callback, max, type, levels) {
   if (!type)
     type = 'walk';
   visited = (Game.visiteds[type] || (Game.visiteds[type] = {}))
-  var visited = (visited[id] || (visited[id] = []))
+  var visited = (visited[id] || (visited[id] = {}))
   var paths = (Game.paths[type] || (Game.paths[type] = {}));
   var path = (paths[id] || (paths[id] = []))
   var queues = (Game.queues[type] || (Game.queues[type] = {}));
   var queue = (queues[id] || (queues[id] = []))
   var vector = Game.vectors[id];
+
+  var locations = visited.locations;
 
   if (path && path.length) {
 
@@ -284,11 +286,9 @@ Game.Object.walk = function(object, callback, max, type, levels) {
     // increase max. range to visit more nodes
     if (levels == null) {
       var last = path[path.length - 2][0];
-      for (var pos = -1; (pos = visited.indexOf(last, pos + 1)) != -1;)
-        if (pos % 5 == 0)
-          break;
+      var pos = locations.indexOf(last);
       if (pos > -1)
-        max += visited[pos + 1]
+        max += visited.distances[pos]
     }
   }
 
@@ -302,10 +302,8 @@ Game.Object.walk = function(object, callback, max, type, levels) {
     }
     var result = path[level - 1];
     if (result) {
-      for (var pos = -1; (pos = visited.indexOf(result[0], pos + 1)) != -1;)
-        if (pos % 5 == 0)
-          break;
-      if (visited[pos + 2] == -Infinity)
+      var pos = visited.locations.indexOf(result[0]);
+      if (visited.qualities[pos] == -Infinity)
         break;
     }
 

@@ -200,7 +200,7 @@ var z = 0;
 // walk around the map
 Map.prototype.walk = function(start, callback, visited, path, queue, max, meta, vector) {
   if (!visited)
-    visited = [];
+    visited = {};
   if (!path)
     path = [];
   if (!queue)
@@ -210,19 +210,27 @@ Map.prototype.walk = function(start, callback, visited, path, queue, max, meta, 
   if (!max)
     max = 3
   var directions = this.directions;
-  for (var pos = -1; (pos = visited.indexOf(start[0], pos + 1)) != -1;)
-    if (pos % 5 == 0)
-      break;
+  
+  var locations = (visited.locations || (visited.locations = []));
+  var distances = (visited.distances || (visited.distances = []));
+  var qualities = (visited.qualities || (visited.qualities = []));
+  var backtrace = (visited.backtrace || (visited.backtrace = []));
+  var processed = (visited.processed || (visited.processed = []));
+
+  var pos = locations.indexOf(start[0]);
   if (pos == -1) {
-    pos = visited.length;
+    pos = locations.length;
     var distance = 0;
   } else {
-    var distance = visited[pos + 1]
+    var distance = distances[pos]
   }
-  visited[pos + 0] = start[0];
-  visited[pos + 1] = distance;
-  visited[pos + 2] = 0;
-  visited[pos + 3] = visited[pos - 5];
+
+  locations[pos] = start[0];
+  distances[pos] = distance;
+  qualities[pos] = 0;
+  backtrace[pos] = visited.locations[pos - 1];
+  processed[pos] = 0;
+
   var position = 0;
   var levels = typeof meta == 'number';
   var skip = 0;
@@ -266,12 +274,9 @@ Map.prototype.walk = function(start, callback, visited, path, queue, max, meta, 
       }
     }
 
-    for (var pos = -1; (pos = visited.indexOf(node[0], pos + 1)) != -1;)
-      if (pos % 5 == 0)
-        break;
-    
-    visited[pos + 4] = 1;
-    distance = visited[pos + 1] + 1;
+    var pos = locations.indexOf(node[0])
+    processed[pos] = 1;
+    distance = distances[pos] + 1;
 
 
 
@@ -288,7 +293,7 @@ Map.prototype.walk = function(start, callback, visited, path, queue, max, meta, 
 
       // add node's neighbours to queue
       for (var d = 0, direction; direction = directions[d++];) {
-
+        // only add neighbours specified by vector, if given
         if (levels && vector && path.length) {
           if (vec) {
             vec = null;
@@ -304,22 +309,20 @@ Map.prototype.walk = function(start, callback, visited, path, queue, max, meta, 
 
 
         if ((collection.indexOf(next) == -1 && next != start) || vector) {
-          for (var pos = -1; (pos = visited.indexOf(next[0], pos + 1)) != -1;)
-            if (pos % 5 == 0)
-              break;
+          var pos = locations.indexOf(next[0])
           if (pos == -1)
-            pos = visited.length;
-          if (!visited[pos + 4] ||  visited[pos + 1] > distance || next == start || vector) {
+            pos = locations.length;
+          if (!processed[pos] ||  distances[pos] > distance || next == start || vector) {
 
             var quality = callback.call(this, next, distance, visited, path, queue, meta);
             
             // register node as visited, store computed values
-            visited[pos]     = next[0]
-            visited[pos + 1] = distance;
-            visited[pos + 2] = quality;
-            visited[pos + 3] = node[0];
-            if (!visited[pos + 4])
-              visited[pos + 4] = 0;
+            locations[pos] = next[0]
+            distances[pos] = distance;
+            qualities[pos] = quality;
+            backtrace[pos] = node[0];
+            if (processed[pos] == null)
+              processed[pos] = 0;
 
             // check callback return value
             switch (typeof quality) {
@@ -341,11 +344,9 @@ Map.prototype.walk = function(start, callback, visited, path, queue, max, meta, 
 
             // add node to queue, preserve quality sort order
             for (var k = queue.length, n; n = queue[k - 1]; k--) {
-              for (var old = -1; (old = visited.indexOf(n[0], old + 1)) != -1;)
-                if (old % 5 == 0)
-                  break;
-              if (magnitude == null || (visited[old] > magnitude && visited[old] < magnitude * 10))
-              if ((visited[old + 1] + visited[old + 2]) > (quality + distance))
+              var old = locations.indexOf(n[0])
+              if (magnitude == null || (n[0] > magnitude && n[0] < magnitude * 10))
+              if ((qualities[old] + distances[old]) > (quality + distance))
                 break;
             }
             queue.splice(k, 0, next)
@@ -365,11 +366,9 @@ Map.prototype.walk = function(start, callback, visited, path, queue, max, meta, 
       var reuse = true;
     var j = 0;
     for (var i = 0, now = next; i < distance; i++) {
-      for (var old = -1; (old = visited.indexOf(now[0], old + 1)) != -1;)
-        if (old % 5 == 0)
-          break;
+      var old = locations.indexOf(now[0]);
       if (old > -1) {
-        var p = visited[old + 3];
+        var p = backtrace[old];
         if (p) {
           var prev = this(p);
           if (prev) {
