@@ -22,7 +22,7 @@ Game.merge('quests', {
                 }
                   complete++;
               }
-              console.log(quest._reference, result.slice(), 'LOLDOQWDKOQWKDWJD')
+//              console.log(quest._reference, result.slice(), 'LOLDOQWDKOQWKDWJD')
           }
           var o = Game.Object.get(this, t);
           var v = value - old;

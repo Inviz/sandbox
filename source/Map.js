@@ -198,13 +198,13 @@ Map.prototype.normalize = function(number, digits) {
 Map.prototype.directions = ['north', 'east', 'south', 'west', 'northwest', 'northeast', 'southeast', 'southwest']
 var z = 0;
 // walk around the map
-Map.prototype.walk = function(start, callback, visited, path, queue, max, meta, vector) {
+Map.prototype.walk = function(start, callback, visited, path, queues, max, meta, vector) {
   if (!visited)
     visited = {};
   if (!path)
     path = [];
-  if (!queue)
-    queue = [];
+  if (!queues)
+    queues = [];
   if (typeof start == 'number')
     start = this(start)
   if (!max)
@@ -235,124 +235,99 @@ Map.prototype.walk = function(start, callback, visited, path, queue, max, meta, 
   var levels = typeof meta == 'number';
   var skip = 0;
 
+  var index = (levels ? meta : 0) * 2
+  var queue = (queues[index] || (queues[index] = []))
+  var weights = (queues[index + 1] || (queues[index + 1] = []))
 
-  if (levels && magnitude == null) {
-    var magnitude = 1;
-    while (magnitude * 10 < start[0])
-      magnitude *= 10
+  if (vector && levels) {
+    var shifted = [];
+    var weighted = [];
+    queues[index] = shifted
+    queues[index + 10] = weighted;
   }
 
-  if (levels && queue.length && vector) {
-    // prepare queue for shift
-    var collection = [];
-    for (var i = 0, j = 0, node; node = queue[i]; i++) {
-      if (node[0] < magnitude || node[0] > magnitude * 10) {
-        if (j)
-          queue[i - j] = node;
-      } else {
-        collection.push(node);
-        var opposite = this(this.opposite(node[0], vector))
-        if (opposite)
-          j++;
-        else
-          queue[i - j] = node;
-      }
-    }
-    if (j)
-      queue.length -= j;
-  } else {
-    var collection = queue;
-  }
-
-  var length = collection.length;
-  queue: for (var node = start; node; node = collection[--length - skip]) {
-    // filter out queued nodes from different level
-    if (levels) {
-      if (node[0] < magnitude || node[0] > magnitude * 10) {
-        skip++;
-        continue
-      }
-    }
+  queue: for (var node = start; node; node = queue[queue.length - 1]) {
 
     var pos = locations.indexOf(node[0])
     processed[pos] = 1;
     distance = distances[pos] + 1;
 
 
-
     if (distance > max && !vector) {
-      next = collection[collection.length - 1 - skip]
+      next = node
       break;
-    } else {
-      if (node !== start) {
-        if (!skip)
-          collection.pop()
-        else
-          collection.splice(length - skip, 1)
-      }
+    }
 
-      // add node's neighbours to queue
-      for (var d = 0, direction; direction = directions[d++];) {
-        // only add neighbours specified by vector, if given
-        if (levels && vector && path.length) {
-          if (vec) {
-            vec = null;
-            break;
-          } else {
-            var vec = vector
-            var direction = vector;
-          }
+    if (vector && levels) {
+      var boundary = !this(this.opposite(node[0], vector))
+    }
+
+    if (node !== start || queue[queue.length -1] === start) {
+      queue.pop()
+      weights.pop()
+    }
+
+    // add node's neighbours to queue
+    // only adds neighbours specified by vector, when given
+    for (var d = 0, direction; direction = directions[d++];) {
+      if (levels && vector && path.length) {
+        if (vec) {
+          vec = null;
+          break;
+        } else {
+          var vec = vector
+          var direction = vector;
         }
-        z++;
-        var next    = this(this[direction](node[0]));
-        if (!next) continue;
+      }
+      z++;
+
+      var next    = this(this[direction](node[0]));
+      if (!next) continue;
 
 
-        if ((collection.indexOf(next) == -1 && next != start) || vector) {
-          var pos = locations.indexOf(next[0])
-          if (pos == -1)
-            pos = locations.length;
-          if (!processed[pos] ||  distances[pos] > distance || next == start || vector) {
+      if ((queue.indexOf(next) == -1 && next != start) || vector) {
+        var pos = locations.indexOf(next[0])
+        if (pos == -1)
+          pos = locations.length;
+        if (!processed[pos] ||  distances[pos] > distance || next == start || vector) {
 
-            var quality = callback.call(this, next, distance, visited, path, queue, meta);
-            
-            // register node as visited, store computed values
-            locations[pos] = next[0]
-            distances[pos] = distance;
-            qualities[pos] = quality;
-            backtrace[pos] = node[0];
-            if (processed[pos] == null)
-              processed[pos] = 0;
+          var quality = callback.call(this, next, distance, visited, path, queue, meta);
+          
+          // register node as visited, store computed values
+          locations[pos] = next[0]
+          distances[pos] = distance;
+          qualities[pos] = quality;
+          backtrace[pos] = node[0];
+          if (processed[pos] == null)
+            processed[pos] = 0;
 
-            // check callback return value
-            switch (typeof quality) {
-              case 'number':
-                if (quality == -Infinity)
-                  break queue;
-                if (quality == Infinity)
-                  continue queue;
-                break;
-              case 'boolean':
-                return quality;
-                break;
-              case 'object': 
-                var result = quality;
+          // check callback return value
+          switch (typeof quality) {
+            case 'number':
+              if (quality == -Infinity)
                 break queue;
-              default:
-                var quality = 0;
-            }
-
-            // add node to queue, preserve quality sort order
-            for (var k = queue.length, n; n = queue[k - 1]; k--) {
-              var old = locations.indexOf(n[0])
-              if (magnitude == null || (n[0] > magnitude && n[0] < magnitude * 10))
-              if ((qualities[old] + distances[old]) > (quality + distance))
-                break;
-            }
-            queue.splice(k, 0, next)
-            if (queue == collection)
-              length++;
+              if (quality == Infinity)
+                continue queue;
+              break;
+            case 'boolean':
+              return quality;
+              break;
+            case 'object': 
+              var result = quality;
+              break queue;
+            default:
+              var quality = 0;
           }
+
+          // add node to queue, preserve quality sort order
+          var q = shifted || queue;
+          var w = weighted || weights;
+          var weight = quality + distance;
+          for (var k = q.length, n; n = q[k - 1]; k--)
+            if (w[k - 1] > weight)
+              break;
+          q.splice(k, 0, next)
+          w.splice(k, 0, weight)
         }
       }
     }
@@ -675,7 +650,9 @@ Map.prototype.draw = function(object) {
     var id = Game.Object.get(object, 'id');
     var world = Game.maps[id]
     var path = Game.paths && Game.paths.walk && Game.paths.walk[id];
-    var queue = Game.queues && Game.queues.look && Game.queues.look[id];
+    var queue = Game.queues && Game.queues.look && Game.queues.look[id]
+    if (queue)
+      queue = queue[0]
   }
 
   var index = 0;
@@ -841,8 +818,6 @@ Map.prototype.walker = function(finish, node, distance, visited, path, queue, me
 
 Map.prototype.finder = function(type, node, distance, visited, path, queue, meta) {
   if (!meta) meta = 0;
-  if (node[0] == 11122)
-    debugger
   path[meta] = node;
   if (Game.Object.get(node, type || 'resources.food.plants.fruit') != null) {
       //console.log('fruit at', node[0])
