@@ -12,11 +12,11 @@ files = [
   JASMINE_ADAPTER,
   'source/*.js',
   'data/Properties.js',
+  'data/Quests.js',
   'data/Resources.js',
   'data/Actions.js',
   'data/Creatures.js',
   'data/Items.js',
-  'data/Quests.js',
   'specs/*.js'
 ];
 

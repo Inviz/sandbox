@@ -47,6 +47,7 @@ Map = function(width) {
   }
 };
 
+// return tile at location
 Map.prototype.tileAt = function(number, lazy) {
   var array = this.array;
   if (this.width == 1) {
@@ -95,12 +96,16 @@ Map.prototype.tileAt = function(number, lazy) {
   return tile;
 }
 
-Map.prototype.move = function(tile, object, from) {
+// move object from one tile to another
+Map.prototype.move = function(from, to, object) {
   this.delete(from, object, true);
-  this.put(tile, object, true);
+  this.put(to, object, true);
 }
 
+// remove object from a tile
 Map.prototype.delete = function(tile, object, lazy) {
+  if (typeof tile == 'number')
+    tile = this(tile)
   var occupation = Game.valueOf('occupy', 0, 'object', object);
   tile.splice(tile.indexOf(occupation), 1);
   object.splice(object.indexOf(tile[0]), 1);
@@ -134,7 +139,10 @@ Map.prototype.delete = function(tile, object, lazy) {
   }
 };
 
+// place object in the tile
 Map.prototype.put = function(tile, object, lazy) {
+  if (typeof tile == 'number')
+    tile = this(tile)
   tile.push(Game.valueOf('occupy', 0, 'object', object));
   object.push(tile[0]);
   if (!lazy)
@@ -197,7 +205,9 @@ Map.prototype.normalize = function(number, digits) {
 
 Map.prototype.directions = ['north', 'east', 'south', 'west', 'northwest', 'northeast', 'southeast', 'southwest']
 var z = 0;
+
 // walk around the map
+// can break & resume its computations
 Map.prototype.walk = function(start, callback, visited, path, queues, max, meta, vector) {
   if (!visited)
     visited = {};
@@ -246,7 +256,17 @@ Map.prototype.walk = function(start, callback, visited, path, queues, max, meta,
     queues[index + 10] = weighted;
   }
 
+
   queue: for (var node = start; node; node = queue[queue.length - 1]) {
+
+      z++;
+
+  if (!window.cc)
+    window.cc = {};
+
+  var ii = levels && meta != null ? meta : -1;
+  window.cc[ii] = (window.cc[ii] || 0) + 1 
+
 
     var pos = locations.indexOf(node[0])
     processed[pos] = 1;
@@ -260,6 +280,7 @@ Map.prototype.walk = function(start, callback, visited, path, queues, max, meta,
 
     if (vector && levels) {
       var boundary = !this(this.opposite(node[0], vector))
+      //if (boundary) console.error('sjfnskjgnkjn', node[0])
     }
 
     if (node !== start || queue[queue.length -1] === start) {
@@ -279,7 +300,6 @@ Map.prototype.walk = function(start, callback, visited, path, queues, max, meta,
           var direction = vector;
         }
       }
-      z++;
 
       var next    = this(this[direction](node[0]));
       if (!next) continue;
@@ -574,6 +594,28 @@ Map.prototype.south = function(number) {
 }
 Map[8] = Map.prototype.south;
 
+Map.prototype.vector = function(from, to) {
+  var north = this.north(from)
+  var south = this.south(from)
+  if (north == to) {
+    return 'north'
+  } else if (this.east(from) == to) {
+    return 'east'
+  } else if (south == to) {
+    return 'south'
+  } else if (this.west(from) == to) {
+    return 'west'
+  } else if (this.east(north) == to) {
+    return 'northeast'
+  } else if (this.east(south) == to) {
+    return 'southeast'
+  } else if (this.west(north) == to) {
+    return 'northwest'
+  } else if (this.west(south) == to) {
+    return 'southwest'
+  }
+}
+
 // set zone in the central square of 9 sq. viewport world
 Map.prototype.setZone = function(number, callback) {
   this.z = Math.floor((Math.log(number) / Math.LN10) + 1);
@@ -651,9 +693,28 @@ Map.prototype.draw = function(object) {
     var world = Game.maps[id]
     var path = Game.paths && Game.paths.walk && Game.paths.walk[id];
     var queue = Game.queues && Game.queues.look && Game.queues.look[id]
-    if (queue)
-      queue = queue[0]
+    var goals = Game.paths && Game.paths.look && Game.paths.look[id];
+    var q = [];
+    var g = []
+    var modifier = 0;
+    for (var k = 0;; k++) {
+      var current = queue[k * 2];
+      if (!current)
+        break;
+      if (goals[k]) {
+        var index = goals[k][0] * Math.pow(10, k) + modifier;
+        g.push(index)
+        this(index)
+      }
+      for (var l = 0, el; el = current[l++];) {
+        var index = el[0] * Math.pow(10, k) + modifier;
+        this(index)
+        q.push(index)
+      }
+      modifier = modifier * 10 + 5
+    }
   }
+
 
   var index = 0;
   var map = this.width == 1 ? this.array[index++] : this;
@@ -732,7 +793,11 @@ Map.prototype.draw = function(object) {
               data[pos + 1] =
               data[pos + 2] = 128
               data[pos + 3] = 255;
-            } else if (queue && queue.indexOf(value) > -1) {
+            } else if (g && g.indexOf(value[0]) > -1) {
+              data[pos] =
+              data[pos + 0] =
+              data[pos + 3] = 255;
+            } else if (q && q.indexOf(value[0]) > -1) {
               data[pos] =
               data[pos + 1] =
               data[pos + 2] = 230
@@ -799,6 +864,8 @@ Map.prototype.draw = function(object) {
   }
 }
 
+// pathfinding callback that evaluates 
+// distance and passability of a tile
 Map.prototype.walker = function(finish, node, distance, visited, path, queue, meta) {
   var passable = true;
   Game.Object.each(node, function(object, type, value) {
@@ -816,6 +883,8 @@ Map.prototype.walker = function(finish, node, distance, visited, path, queue, me
   return distance * 1000000;
 };
 
+// pathfinding callback that checks if
+// tile contains a resource
 Map.prototype.finder = function(type, node, distance, visited, path, queue, meta) {
   if (!meta) meta = 0;
   path[meta] = node;

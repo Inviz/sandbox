@@ -1,47 +1,42 @@
+// simulate a single tick on a given map
 Time = function(time, map) {
   if (time == null)
     time = 0;
-  time++;
   if (map) {
     for (var i = 0, object; object = map.objects[i++];) {
       var creature = Game.Object.max(object, 'creatures.animals');
       if (creature != null) {
         var id = Game.Object.get(object, 'id');
-        if (Game.paths.walk)
+
+        // move object on its path by one tile
+        if (Game.paths.walk) {
           var path = Game.paths.walk[id];
-        if (path) {
-          var popped = path.pop();
-          var last = path[path.length - 1];
-//          console.log(path.slice(), last, popped)
-          if (last) {
-            var from = map(Game.Object.get(object, 1));
-            var north = map.north(from[0])
-            var south = map.south(from[0])
-            if (north == last) {
-              Game.vectors[id] = 'north'
-            } else if (map.east(from[0]) == last) {
-              Game.vectors[id] = 'east'
-            } else if (south == last) {
-              Game.vectors[id] = 'south'
-            } else if (map.west(from[0]) == last) {
-              Game.vectors[id] = 'west'
-            } else if (map.east(north) == last) {
-              Game.vectors[id] = 'northeast'
-            } else if (map.east(south) == last) {
-              Game.vectors[id] = 'southeast'
-            } else if (map.west(north) == last) {
-              Game.vectors[id] = 'northwest'
-            } else if (map.west(south) == last) {
-              Game.vectors[id] = 'southwest'
+          if (path) {
+            var popped = path.pop();
+            var to = path[path.length - 1];
+            if (to) {
+              var from = Game.Object.get(object, 1);
+              Game.vectors[id] = map.vector(from, to[0])
+              map.move(from, to, object);
             }
-//            console.log('from', Game.vectors[id], last, 'to', map(Game.Object.get(object, 1)))
-            map.move(last, object, from);
           }
         }
-        Game.Object.increment(object, 'hunger', 1);
-//        console.error(path, id, Game[creature]._reference)
+
+        // increase values over time
+        if (time % 4 == 0)
+          Game.Object.increment(object, 'hunger', 1);
+        
+        // execute object's current quest and subquests
+        for (var current, prev; 
+            (current = Game.Object.max(object, 'quests')) != prev;
+            prev = current) {
+          var value = Game.valueOf(current);
+          var type = Game[Game.typeOf(current)]
+          if (type.actions)
+            Game.Object.invoke(object, type, value);
+        }
       }
     }
   }
-  return time;
+  return time + 1;
 };

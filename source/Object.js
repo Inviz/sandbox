@@ -140,7 +140,7 @@ Game.Object.set = function(array, type, value, r1, r2, r3) {
   }
 }
 
-// Add or remove from property value
+// modify property by given amount
 Game.Object.increment = function(array, type, value, r1, r2, r3) {
   if (type !== +type)
       type = Game.valueOf(type)
@@ -171,9 +171,9 @@ Game.Object.increment = function(array, type, value, r1, r2, r3) {
   return value;
 }
 
-// iterate referenced memes
+// iterate referenced memes (creature, item)
 Game.Object.identify = function(array, callback) {
-  var properties = Game.valueOf('properties') * 1000;
+  var resources = Game.valueOf('resources') * 1000;
   return (Game.Object.identify = function(array, callback) {
     for (var i = 0, j = array.length; i < j; i++) {
       // parse each property in array
@@ -185,7 +185,7 @@ Game.Object.identify = function(array, callback) {
       var divisor = Math.pow(10, digits - 4);
       var kind = Math.floor(value / divisor);
       //handle ref erence (type of creature or item)
-      if (kind > properties + 1000) {
+      if (kind > resources + 1000) {
         callback.call(array, Game[kind], value + kind * divisor);
       }
     }
@@ -258,7 +258,7 @@ Game.Object.max = function(array, type, baseline) {
   return result
 }
 
-// find path for a creature
+// find path for creature
 // stores all intermediate computations 
 // to resume pathfinding on next tick
 Game.Object.walk = function(object, callback, max, type, levels) {
@@ -303,16 +303,27 @@ Game.Object.walk = function(object, callback, max, type, levels) {
     var result = path[level - 1];
     if (result) {
       var pos = visited.locations.indexOf(result[0]);
-      if (visited.qualities[pos] == -Infinity)
+      if (visited.qualities[pos] == -Infinity) {
+        path.length = level;
         break;
+      }
     }
 
     if (levels) {
       // move to parent zone
       if (level > 1) {
+        var prev = start;
         start = world.up(level == 2 ? location : start);
         if (world.zone == start)
           break;
+        if (vector) {
+          if (!z)
+            var z = world.opposite(location, vector)
+          z = world.up(z);
+          if (z == start) {
+            break;
+          }
+        }
       }
       if (level > 0)
         world.walk(start, callback, visited, path, queue, max, level - 1, vector)
@@ -321,4 +332,28 @@ Game.Object.walk = function(object, callback, max, type, levels) {
     }
   }
   return path;
+}
+
+// Execute and schedule subquests  
+Game.Object.invoke = function(array, type, value, ref, r1, r2) {
+  var result;
+  for (var i = 0, action; action = type.actions[i++];) {
+    var t = Game.typeOf(action);
+    var p = Game.valueOf(action)
+    var quest = Game[t];
+    if (quest.start) {
+      var result = quest.start.call(array, result);
+      if (result.length == 2) {
+        if (quest.complete) {
+          quest.complete.call(array, result);
+          Game.Object.set(array, type, 0, ref, r1, r2)
+          break;
+        }
+      }
+    } else {
+      var o = Game.Object.get(array, t);
+      if (!o)
+        Game.Object.increment(array, t, p, ref, r1, r2)
+    }
+  }
 }

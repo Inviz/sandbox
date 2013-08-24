@@ -1,34 +1,19 @@
 Game.merge('quests', {
   routine: {
     set: function(value, old, type, ref, r1, r2) {
-      // if current quest has max. priority
-      var current = Game.Object.max(this, 'quests');
-      var result;
-      var first = (Game.typeOf(current) == type._index);
-      if (type.actions) {
-        if (type.actions.call)
-          type.actions = type.actions.call(type);
-        var complete = 0;
-        for (var i = 0, action; action = type.actions[i++];) {
-          var t = Game.typeOf(action);
-          var p = Game.valueOf(action)
-          var quest = Game[t];
-          if (quest.start) {
-
-              result = quest.start.call(this, result);
-              if (result.length == 1) {
-                if (quest.complete) {
-                  quest.complete.call(this, result);
-                }
-                  complete++;
-              }
-//              console.log(quest._reference, result.slice(), 'LOLDOQWDKOQWKDWJD')
-          }
+      if (!type.actions)
+        return;
+      if (type.actions.call)
+        type.actions = type.actions.call(type);
+      var complete = 0, result;
+      for (var i = 0, action; action = type.actions[i++];) {
+        var t = Game.typeOf(action);
+        var quest = Game[t];
+        var v = value - old;
+        if (v && !quest.start) {
           var o = Game.Object.get(this, t);
-          var v = value - old;
-          if (!o)
-            p += v;
-          Game.Object.increment(this, t, p, ref, r1, r2)
+          if (o)
+            Game.Object.increment(this, t, v, ref, r1, r2)
         }
       }
     },
@@ -105,7 +90,7 @@ Game.merge('quests', {
         start: function(type) {
           return Game.Object.walk(this, function(node, distance, v, p, q, m) {
             return this.finder(type, node, distance, v, p, q, m)
-          }, 3, 'look', 4);
+          }, 2, 'look', 4);
         }
       },
       'navigate': {
@@ -113,7 +98,10 @@ Game.merge('quests', {
           var finish = path[path.length -1][0];
           return Game.Object.walk(this, function(node, distance, v, p, q, m) {
             return this.walker(finish, node, distance, v, p, q, m)
-          }, 6)
+          }, 5)
+        },
+        complete: function() {
+          debugger
         }
       },
      //'gather': {
