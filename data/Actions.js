@@ -13,12 +13,38 @@ Game.merge('actions', {
   },
 
   process: {
-    output: 'do',
+    output: 'channeling',
 
     gather: {
       execute: function(argument, output, quest) {
-
+        if (argument.result.length != 1) 
+          return 0;
+        return (output || 0) + 1;
       },
+      condition: function(argument, output, quest) {
+        return output == 3
+      },
+      complete: function(argument, output, quest) {
+        Game.Object.each(argument.result[0], function(object) {
+          var resource = Game.Object.get(object, 'resources.food.plants.fruit');
+          if (resource) {
+            Game.Object.set(object, 'resources.food.plants.fruit', 0)
+            console.log(
+                Game('items.organic.plants.berry', 
+                  Game.valueOf('resources.food.plants.fruit', resource)
+                )
+              )
+            this.push(
+              Game.valueOf('properties.belonging.inventory.bag', 1, 'object', 
+                Game('items.organic.plants.berry', 
+                  Game.valueOf('resources.food.plants.fruit', resource)
+                )
+              )
+            )
+          }
+        })
+      },
+
       quickly: {
 
       }
@@ -75,14 +101,26 @@ Game.merge('actions', {
       execute: function(input, output, quest) {
         var result = input.result;
         var finish = result[result.length - 1][0];
-        return Game.Object.walk(this, function(node, distance, meta, output) {
+        var path = Game.Object.walk(this, function(node, distance, meta, output) {
           return this[quest.finder](finish, node, distance, meta, output)
         }, quest.radius, null, output)
+
+        if (path.result.length > 1) {
+          if (!path.next) {
+            path.result.pop();
+            path.next = path.result[path.result.length - 1];
+          }
+        }
+        return path;
       },
       condition: function(argument, output, quest) {
-        return output.result.length == 2
+        return output && output.result.length == 1
       },
       complete: function() {
+
+      },
+      cleanup: function() {
+
       },
 
       finder: 'walker',

@@ -300,6 +300,9 @@ Game.merge('properties', {
       feet: {
         type: ['items.wear.footwear']
       }
+    },
+    inventory: {
+      bag: {}
     }
   }
 });

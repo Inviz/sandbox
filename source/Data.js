@@ -40,6 +40,7 @@ var Data = function(object, index, parent, reference) {
         else
           var breaking = true;
       }
+      Storage._path = path
       parent[index] = Storage;
     }
     if (!index)

@@ -11,9 +11,11 @@ Game.merge('quests', {
         var quest = Game[t];
         var v = value - old;
         if (v && !quest.start) {
-          var o = Game.Object.get(this, t);
-          if (o)
-            Game.Object.increment(this, t, v, ref, r1, r2)
+          if (!quest.precondition || quest.precondition.call(this)) {
+            var o = Game.Object.get(this, t);
+            if (o)
+              Game.Object.increment(this, t, v, ref, r1, r2)
+          }
         }
       }
     },
@@ -57,6 +59,9 @@ Game.merge('quests', {
     },
     process: {
       cook: {
+        precondition: function() {
+          return Game.Object.max(this, 'creatures.animals.primates') != null;
+        },
         choices: function() {
           return [
             Game.valueOf('quests.routine.acquire', 1, 'fire'),

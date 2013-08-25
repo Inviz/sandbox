@@ -275,31 +275,56 @@ Game.Object.walk = function(object, callback, max, levels, output) {
 
     // increase max. range to visit more nodes
     if (levels == null) {
-      var last = path[path.length - 2][0];
-      var pos = output.locations.indexOf(last);
-      if (pos > -1)
-        max += output.distances[pos]
+      var prev = path[path.length - 2];
+      if (prev) {
+        var last = prev[0];
+        var pos = output.locations.indexOf(last);
+        if (pos > -1)
+          max += output.distances[pos]
+      }
     }
   }
 
   // launch pathfinding on a given map zoom level
   // may zoom out when reached pathfinding limit 
   var limit = (levels || 0) + 1
-  for (var level = 0; level < limit; level++) {
+  var result = output && output.result;
+  loop: for (var level = 0; level < limit; level++) {
 
-    // don't find path if there's a stored result for this level
-    if (!levels)
-      level++;
-    var result = output && output.result && output.result[level - 1];
-    if (result) {
-      var pos = output.locations.indexOf(result[0]);
-      if (output.qualities[pos] == -Infinity) {
-        path.length = level;
-        break;
+    // optimize path
+    if (result && result.length) {
+      var i = levels ? level - 1 : result.length - 1
+      for (var node; node = result[i];) {
+        var pos = output.locations.indexOf(pos);
+        var distance = output.distances[pos];
+        var quality = callback.call(world, node, distance, i, output);
+        switch (quality) {
+          case -Infinity:
+            if (!levels || result[i + 1]) {
+              var j = levels ? i + 1 : i;
+              var removed = result.splice(j, result.length - i);
+              if (!levels) {
+                output.result = removed; 
+                break loop;
+              } else {
+                break loop;
+              }
+            }
+        }
+        if (levels)
+          break;
+        else
+          i--
       }
     }
 
+    if (levels && output
+    && output.qualities[output.qualities.length - 1] == -Infinity
+    && output.result[level] == null)
+      break;
+
     if (levels) {
+
       // move to parent zone
       if (level > 1) {
         var prev = start;
@@ -318,13 +343,10 @@ Game.Object.walk = function(object, callback, max, levels, output) {
       if (level > 0)
         output = world.walk(start, callback, max, level - 1, vector, output)
     } else {
+      if (output && output.result.length)
+        debugger
       output = world.walk(start, callback, max, null, null, output)
     }
-
-    if (levels && 
-      output && 
-      output.qualities[output.qualities.length - 1] == -Infinity && output.result[level == null])
-      break;
   }
   return output;
 }
@@ -335,29 +357,41 @@ Game.Object.invoke = function(array, type, value, ref, r1, r2, id) {
   for (var i = 0, action; action = type.steps[i++];) {
     var t = Game.typeOf(action);
     var p = Game.valueOf(action)
-    debugger
     var quest = Game[t];
     if (quest.execute) {
       var output = quest.output && (Game.output[quest.output] || (Game.output[quest.output] = {}))
-      var result = quest.execute.call(array, argument, output && output[id], quest, value, ref, r1, r2);
-      if (!quest.condition || quest.condition.call(array, argument, result, quest, value, ref, r1, r2)) { 
-        if (!quest.complete || quest.complete.call(array, argument, result, quest, value, ref, r1, r2)) {
-          if (quest.cleanup && quest.cleanup.call(array, argument, result, quest, value, ref, r1, r2)) {
-            
-            if (output)
-              output[id] = null;
+      var cache = output && output[id];
+      if (cache == null)
+        console.info('step', [quest._path])
+      if (quest.condition && quest.condition.call(array, argument, cache, quest, value, ref, r1, r2)) { 
+        if (!quest.complete || quest.complete.call(array, argument, cache, quest, value, ref, r1, r2) !== false) {
+          console.info('done', [quest._path])
+          if (quest.cleanup)
+            quest.cleanup.call(array, argument, result, quest, value, ref, r1, r2);
+
+          if (output)
+            output[id] = null;
+
+          if (!type.steps[i]) {
+            console.log('cleanup', type._reference, array)
+            Game.Object.set(array, type, 0)
+            break;
           }
           //Game.Object.set(array, type, 0, ref, r1, r2)
           //break;
         }
+      } else {
+        var result = quest.execute.call(array, argument, cache, quest, value, ref, r1, r2);
       }
       if (output)
         output[id] = result
       var argument = result;
     } else {
-      var o = Game.Object.get(array, t);
-      if (!o)
-        Game.Object.increment(array, t, p, ref, r1, r2)
+      if (!quest.precondition || quest.precondition.call(this)) {
+        var o = Game.Object.get(array, t);
+        if (!o)
+          Game.Object.increment(array, t, p, ref, r1, r2)
+      }
     }
   }
 }

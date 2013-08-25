@@ -87,7 +87,7 @@ Map.prototype.tileAt = function(number, lazy) {
   } else {
     if (!lazy && !tile) {
       tile = array[position] = [
-        this.normalize(number, digits)
+        this.normalize(parseInt(number), digits)
       ]
     }
   }
@@ -96,6 +96,8 @@ Map.prototype.tileAt = function(number, lazy) {
 
 // move object from one tile to another
 Map.prototype.move = function(from, to, object) {
+  if (typeof to == 'string')
+    to = this[to](from);
   this.delete(from, object, true);
   this.put(to, object, true);
 }
@@ -258,7 +260,6 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
     queues[index + 1] = weighted;
   }
 
-
   queue: for (var node = start; node; node = queue[queue.length - 1]) {
 
       z++;
@@ -278,7 +279,7 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
       //if (boundary) console.error('sjfnskjgnkjn', node[0])
     }
 
-    if (node !== start || queue[queue.length -1] === start) {
+    if (node !== start || queue[queue.length - 1] === start) {
       queue.pop()
       weights.pop()
     }
@@ -354,10 +355,14 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
     } else
       var reuse = true;
     var j = 0;
+    output.queues = [];
+    output.processed.length = 0;
+    output.processed.length = output.locations.length;
     for (var i = 0, now = next; i < distance; i++) {
       var old = locations.indexOf(now[0]);
       if (old > -1) {
         var p = backtrace[old];
+        output.processed[locations.indexOf(p)] = 1
         if (p) {
           var prev = this(p);
           if (prev) {

@@ -2,6 +2,7 @@
 Time = function(time, map) {
   if (time == null)
     time = 0;
+  // console.group('Tick ' + time);
   if (map) {
     for (var i = 0, object; object = map.objects[i++];) {
       var creature = Game.Object.max(object, 'creatures.animals');
@@ -11,17 +12,13 @@ Time = function(time, map) {
         // move object on its path by one tile
         if (Game.output.walk) {
           var cache = Game.output.walk[id];
-          if (cache) {
-            var path = cache.result;
-            if (path) {
-              var popped = path.pop();
-              var to = path[path.length - 1];
-              if (to) {
-                var from = Game.Object.get(object, 1);
-                Game.vectors[id] = map.vector(from, to[0])
-                map.move(from, to, object);
-              }
-            }
+          if (cache && cache.next) {
+            var from = Game.Object.get(object, 1);
+            map.move(from, cache.next, object)
+            Game.vectors[id] = map.vector(from, cache.next[0]);
+            cache.next = null;
+          } else {
+            Game.vectors[id] = null;
           }
         }
 
@@ -36,10 +33,11 @@ Time = function(time, map) {
           var value = Game.valueOf(current);
           var type = Game[Game.typeOf(current)]
           if (type.steps)
-            Game.Object.invoke(object, type, value, null, null, null  , id);
+            Game.Object.invoke(object, type, value, null, null, null, id);
         }
       }
     }
   }
+  // console.groupEnd('Tick ' + time);
   return time + 1;
 };
