@@ -148,10 +148,12 @@ Data.prototype.merge = function(key, value, index) {
     && Data._ignored.indexOf(property) == -1
     && key !== property) {
       var v = this[property];
-      if (object && v._index == null)
-        object.merge(property, v)
-      else if (val !== undefined && val._index == null)
+      if (object && v._index == null) {
+        if (object[property] == null)
+          object.merge(property, v)
+      } else if (val !== undefined && val._index == null) {
         v[key] = val;
+      }
     }
 }
 

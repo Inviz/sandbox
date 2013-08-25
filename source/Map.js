@@ -19,19 +19,17 @@ Map = function(width) {
     map.max = Math.pow(10, width)
     map.array = array;
     map.objects = [];
-    if (!Game.paths)
-      Game.paths = {};
-    if (!Game.visiteds)
-      Game.visiteds = {};
+
     if (!Game.maps)
       Game.maps = {};
     map.maps = Game.maps;
-    if (!Map.indexOfs)
-      Map.indexOfs = {};
-    if (!Game.queues)
-      Game.queues = {};
+    if (!Game.output)
+      Game.output = {};
     if (!Game.vectors)
       Game.vectors = {};
+
+    if (!Map.indexOfs)
+      Map.indexOfs = {};
     map.indexOfs = (Map.indexOfs[width] || (Map.indexOfs[width] = {}));
     if (width == 1) {
       for (var i = 0; i < 9; i++) {
@@ -208,24 +206,30 @@ var z = 0;
 
 // walk around the map
 // can break & resume its computations
-Map.prototype.walk = function(start, callback, visited, path, queues, max, meta, vector) {
-  if (!visited)
-    visited = {};
-  if (!path)
-    path = [];
-  if (!queues)
-    queues = [];
+Map.prototype.walk = function(start, callback, max, meta, vector, output) {
+  if (!output)
+    output = {
+      result: [],
+      queues: [],
+      locations: [],
+      distances: [],
+      qualities: [],
+      backtrace: [],
+      processed: []
+    }
+  var result = output.result;
+  var queues = output.queues;
+  var locations = output.locations;
+  var distances = output.distances;
+  var qualities = output.qualities;
+  var backtrace = output.backtrace;
+  var processed = output.processed;
+
   if (typeof start == 'number')
     start = this(start)
   if (!max)
     max = 3
   var directions = this.directions;
-  
-  var locations = (visited.locations || (visited.locations = []));
-  var distances = (visited.distances || (visited.distances = []));
-  var qualities = (visited.qualities || (visited.qualities = []));
-  var backtrace = (visited.backtrace || (visited.backtrace = []));
-  var processed = (visited.processed || (visited.processed = []));
 
   var pos = locations.indexOf(start[0]);
   if (pos == -1) {
@@ -238,22 +242,20 @@ Map.prototype.walk = function(start, callback, visited, path, queues, max, meta,
   locations[pos] = start[0];
   distances[pos] = distance;
   qualities[pos] = 0;
-  backtrace[pos] = visited.locations[pos - 1];
+  backtrace[pos] = locations[pos - 1];
   processed[pos] = 0;
 
-  var position = 0;
   var levels = typeof meta == 'number';
-  var skip = 0;
-
   var index = (levels ? meta : 0) * 2
   var queue = (queues[index] || (queues[index] = []))
   var weights = (queues[index + 1] || (queues[index + 1] = []))
 
+  // when shifting a shape, replace perimeter with another
   if (vector && levels) {
     var shifted = [];
     var weighted = [];
     queues[index] = shifted
-    queues[index + 10] = weighted;
+    queues[index + 1] = weighted;
   }
 
 
@@ -261,19 +263,12 @@ Map.prototype.walk = function(start, callback, visited, path, queues, max, meta,
 
       z++;
 
-  if (!window.cc)
-    window.cc = {};
-
-  var ii = levels && meta != null ? meta : -1;
-  window.cc[ii] = (window.cc[ii] || 0) + 1 
-
-
     var pos = locations.indexOf(node[0])
     processed[pos] = 1;
     distance = distances[pos] + 1;
 
 
-    if (distance > max && !vector) {
+    if (distance > max + 1 && !vector) {
       next = node
       break;
     }
@@ -289,9 +284,9 @@ Map.prototype.walk = function(start, callback, visited, path, queues, max, meta,
     }
 
     // add node's neighbours to queue
-    // only adds neighbours specified by vector, when given
+    // only adds ones specified by vector, when given
     for (var d = 0, direction; direction = directions[d++];) {
-      if (levels && vector && path.length) {
+      if (levels && vector && result.length) {
         if (vec) {
           vec = null;
           break;
@@ -304,14 +299,13 @@ Map.prototype.walk = function(start, callback, visited, path, queues, max, meta,
       var next    = this(this[direction](node[0]));
       if (!next) continue;
 
-
       if ((queue.indexOf(next) == -1 && next != start) || vector) {
         var pos = locations.indexOf(next[0])
         if (pos == -1)
           pos = locations.length;
         if (!processed[pos] ||  distances[pos] > distance || next == start || vector) {
 
-          var quality = callback.call(this, next, distance, visited, path, queue, meta);
+          var quality = callback.call(this, next, distance, meta, output);
           
           // register node as visited, store computed values
           locations[pos] = next[0]
@@ -333,7 +327,7 @@ Map.prototype.walk = function(start, callback, visited, path, queues, max, meta,
               return quality;
               break;
             case 'object': 
-              var result = quality;
+              var ret = quality;
               break queue;
             default:
               var quality = 0;
@@ -353,10 +347,10 @@ Map.prototype.walk = function(start, callback, visited, path, queues, max, meta,
     }
   }
 
-  // backtrace path
-  if (!levels && !result) {
-    if (!path.length) {
-      path.push(next);
+  // backtrace result
+  if (!levels && !ret) {
+    if (!result.length) {
+      result.push(next);
     } else
       var reuse = true;
     var j = 0;
@@ -367,12 +361,12 @@ Map.prototype.walk = function(start, callback, visited, path, queues, max, meta,
         if (p) {
           var prev = this(p);
           if (prev) {
-            if (path.indexOf(prev) > -1)
+            if (result.indexOf(prev) > -1)
               break;
             if (reuse) {
-              path.splice(j++, 0, prev);
+              result.splice(j++, 0, prev);
             } else {
-              path.push(prev)
+              result.push(prev)
             }
           }
         }
@@ -380,10 +374,10 @@ Map.prototype.walk = function(start, callback, visited, path, queues, max, meta,
       now = p && prev;
     }
   }
-  return result == null ? path : result;
+  return output;
 };
 
-// calculate tole position in 1d array 
+// calculate tile position in 1d base10 array 
 Map.prototype.indexOf = function(number) {
   var right = number % this.max;
   var cache = this.indexOfs[right];
@@ -691,9 +685,11 @@ Map.prototype.draw = function(object) {
   if (object) {
     var id = Game.Object.get(object, 'id');
     var world = Game.maps[id]
-    var path = Game.paths && Game.paths.walk && Game.paths.walk[id];
-    var queue = Game.queues && Game.queues.look && Game.queues.look[id]
-    var goals = Game.paths && Game.paths.look && Game.paths.look[id];
+    var navigate = Game.output.walk && Game.output.walk[id]
+    var locate = Game.output.look && Game.output.look[id];
+    var queue = locate.queues;
+    var goals = locate.result;
+    var path = navigate.result;
     var q = [];
     var g = []
     var modifier = 0;
@@ -866,12 +862,12 @@ Map.prototype.draw = function(object) {
 
 // pathfinding callback that evaluates 
 // distance and passability of a tile
-Map.prototype.walker = function(finish, node, distance, visited, path, queue, meta) {
+Map.prototype.walker = function(finish, node, distance, meta, output) {
   var passable = true;
   Game.Object.each(node, function(object, type, value) {
-      if (Game.Object.get(object, 'table') != null) {
-          passable = false;
-      }
+    if (Game.Object.get(object, 'table') != null) {
+      passable = false;
+    }
   })
 
   if (!passable)
@@ -885,11 +881,10 @@ Map.prototype.walker = function(finish, node, distance, visited, path, queue, me
 
 // pathfinding callback that checks if
 // tile contains a resource
-Map.prototype.finder = function(type, node, distance, visited, path, queue, meta) {
-  if (!meta) meta = 0;
-  path[meta] = node;
+Map.prototype.finder = function(type, node, distance, meta, output) {
+  output.result[meta || 0] = node;
   if (Game.Object.get(node, type || 'resources.food.plants.fruit') != null) {
-      //console.log('fruit at', node[0])
-      return -Infinity;
+    //console.log('fruit at', node[0])
+    return -Infinity;
   }
 }

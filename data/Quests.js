@@ -1,12 +1,12 @@
 Game.merge('quests', {
   routine: {
     set: function(value, old, type, ref, r1, r2) {
-      if (!type.actions)
+      if (!type.steps)
         return;
-      if (type.actions.call)
-        type.actions = type.actions.call(type);
+      if (type.steps.call)
+        type.steps = type.steps.call(type);
       var complete = 0, result;
-      for (var i = 0, action; action = type.actions[i++];) {
+      for (var i = 0, action; action = type.steps[i++];) {
         var t = Game.typeOf(action);
         var quest = Game[t];
         var v = value - old;
@@ -19,7 +19,7 @@ Game.merge('quests', {
     },
     survival: {
       'feed': {
-        actions: function() {
+        steps: function() {
           return [
             Game.valueOf('quests.routine.acquire.outside', 3, 'resources.food'),
             Game.valueOf('quests.routine.process.cook', 2, 'resources.food'),
@@ -28,7 +28,7 @@ Game.merge('quests', {
         }
       },
       'rest': {
-        actions: function() {
+        steps: function() {
           return [
             Game.valueOf('quests.routine.shelter', -1),
             Game.valueOf('quests.routine.rest',     1)
@@ -36,7 +36,7 @@ Game.merge('quests', {
         }
       },
       'hide': {
-        actions: function() {
+        steps: function() {
           return [
             Game.valueOf('quests.routine.shelter',  1),
             Game.valueOf('quests.routine.rest',    -1)
@@ -86,24 +86,6 @@ Game.merge('quests', {
       }
     },
     world: {
-      'locate': {
-        start: function(type) {
-          return Game.Object.walk(this, function(node, distance, v, p, q, m) {
-            return this.finder(type, node, distance, v, p, q, m)
-          }, 2, 'look', 4);
-        }
-      },
-      'navigate': {
-        start: function(path) {
-          var finish = path[path.length -1][0];
-          return Game.Object.walk(this, function(node, distance, v, p, q, m) {
-            return this.walker(finish, node, distance, v, p, q, m)
-          }, 5)
-        },
-        complete: function() {
-          debugger
-        }
-      },
      //'gather': {
      //  start: function(path) {
      //     
@@ -123,11 +105,11 @@ Game.merge('quests', {
         }
       },
       outside: {
-        actions: function() {
+        steps: function() {
           return [
-            Game.valueOf('quests.routine.world.locate', 3),
-            Game.valueOf('quests.routine.world.navigate', 2),
-            Game.valueOf('quests.routine.world.gather', 1)
+            Game.valueOf('actions.search.property.quickly', 3),
+            Game.valueOf('actions.navigate.there.quickly', 2),
+            Game.valueOf('actions.process.gather.quickly', 1)
           ]
         }
       },
@@ -137,85 +119,85 @@ Game.merge('quests', {
   motives: {
     knowledge: {
       'deliver': {
-        actions: ['get', 'goto', 'give']
+        steps: ['get', 'goto', 'give']
       },
       'spy': {
-        actions: ['spy']
+        steps: ['spy']
       },
       'interview': {
-        actions: ['goto', 'listen', 'goto', 'report']
+        steps: ['goto', 'listen', 'goto', 'report']
       },
       'use': {
-        actions: ['get', 'goto', 'use', 'goto', 'give']
+        steps: ['get', 'goto', 'use', 'goto', 'give']
       }
     },
     reputation: {
       'obtain': {
-        actions: ['get', 'goto', 'give']
+        steps: ['get', 'goto', 'give']
       },
       'kill': {
-        actions: ['goto', 'kill', 'goto', 'report']
+        steps: ['goto', 'kill', 'goto', 'report']
       },
       'explore': {
-        actions: ['goto', 'goto', 'report']
+        steps: ['goto', 'goto', 'report']
       }
     },
     serenity: {
       'revenge': {
-        actions: ['goto', 'damage']
+        steps: ['goto', 'damage']
       },
       'capture': {
-        actions: ['get', 'goto', 'capture', 'goto', 'give']
+        steps: ['get', 'goto', 'capture', 'goto', 'give']
       },
       'listen': {
-        actions: ['goto', 'listen', 'goto', 'report']
+        steps: ['goto', 'listen', 'goto', 'report']
       },
       'recover': {
-        actions: ['get', 'goto', 'give']
+        steps: ['get', 'goto', 'give']
       },
       'rescue': {
-        actions: ['goto', 'damage', 'escort', 'goto', 'report']
+        steps: ['goto', 'damage', 'escort', 'goto', 'report']
       }
     },
     protection: {
       'uphold': {
-        actions: ['goto', 'damage', 'goto', 'report']
+        steps: ['goto', 'damage', 'goto', 'report']
       },
       'repair': {
-        actions: ['get', 'goto', 'use'] 
+        steps: ['get', 'goto', 'use'] 
       },
       'diversion': {
-        actions: ['get', 'goto', 'use']
+        steps: ['get', 'goto', 'use']
       },
       'fortify': {
-        actions: ['goto', 'repair']
+        steps: ['goto', 'repair']
       },
       'guard': {
-        actions: ['goto', 'defend']
+        steps: ['goto', 'defend']
       }
     },
     conquest: {
       'attack': {
-        actions: ['goto', 'damage']
+        steps: ['goto', 'damage']
       },
       'steal': {
-        actions: ['goto', 'steal', 'goto', 'give']
+        steps: ['goto', 'steal', 'goto', 'give']
       }
     },
     wealth: {
       'gather': {
-        actions: ['goto', 'get']
+        steps: ['goto', 'get']
       },
       'make': {
-        actions: ['produce']
+        steps: ['produce']
       }
     },
     ability: {
       'assemble': {
-        actions: ['repair', 'use']
+        steps: ['repair', 'use']
       },
       'research': {
-        actions: ['get', 'use']
+        steps: ['get', 'use']
       }
     }
   }

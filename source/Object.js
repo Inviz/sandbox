@@ -261,23 +261,13 @@ Game.Object.max = function(array, type, baseline) {
 // find path for creature
 // stores all intermediate computations 
 // to resume pathfinding on next tick
-Game.Object.walk = function(object, callback, max, type, levels) {
+Game.Object.walk = function(object, callback, max, levels, output) {
   var id = Game.Object.get(object, 'id');
   var world = Game.maps[id]
   var location = Game.Object.get(object, 1);
   var start = location;
-  if (!type)
-    type = 'walk';
-  visited = (Game.visiteds[type] || (Game.visiteds[type] = {}))
-  var visited = (visited[id] || (visited[id] = {}))
-  var paths = (Game.paths[type] || (Game.paths[type] = {}));
-  var path = (paths[id] || (paths[id] = []))
-  var queues = (Game.queues[type] || (Game.queues[type] = {}));
-  var queue = (queues[id] || (queues[id] = []))
   var vector = Game.vectors[id];
-
-  var locations = visited.locations;
-
+  var path = output && output.result;
   if (path && path.length) {
 
     // resume previous path at its best node 
@@ -286,9 +276,9 @@ Game.Object.walk = function(object, callback, max, type, levels) {
     // increase max. range to visit more nodes
     if (levels == null) {
       var last = path[path.length - 2][0];
-      var pos = locations.indexOf(last);
+      var pos = output.locations.indexOf(last);
       if (pos > -1)
-        max += visited.distances[pos]
+        max += output.distances[pos]
     }
   }
 
@@ -296,14 +286,14 @@ Game.Object.walk = function(object, callback, max, type, levels) {
   // may zoom out when reached pathfinding limit 
   var limit = (levels || 0) + 1
   for (var level = 0; level < limit; level++) {
+
     // don't find path if there's a stored result for this level
-    if (!levels) {
+    if (!levels)
       level++;
-    }
-    var result = path[level - 1];
+    var result = output && output.result && output.result[level - 1];
     if (result) {
-      var pos = visited.locations.indexOf(result[0]);
-      if (visited.qualities[pos] == -Infinity) {
+      var pos = output.locations.indexOf(result[0]);
+      if (output.qualities[pos] == -Infinity) {
         path.length = level;
         break;
       }
@@ -326,30 +316,44 @@ Game.Object.walk = function(object, callback, max, type, levels) {
         }
       }
       if (level > 0)
-        world.walk(start, callback, visited, path, queue, max, level - 1, vector)
+        output = world.walk(start, callback, max, level - 1, vector, output)
     } else {
-      world.walk(start, callback, visited, path, queue, max)
+      output = world.walk(start, callback, max, null, null, output)
     }
+
+    if (levels && 
+      output && 
+      output.qualities[output.qualities.length - 1] == -Infinity && output.result[level == null])
+      break;
   }
-  return path;
+  return output;
 }
 
 // Execute and schedule subquests  
-Game.Object.invoke = function(array, type, value, ref, r1, r2) {
+Game.Object.invoke = function(array, type, value, ref, r1, r2, id) {
   var result;
-  for (var i = 0, action; action = type.actions[i++];) {
+  for (var i = 0, action; action = type.steps[i++];) {
     var t = Game.typeOf(action);
     var p = Game.valueOf(action)
+    debugger
     var quest = Game[t];
-    if (quest.start) {
-      var result = quest.start.call(array, result);
-      if (result.length == 2) {
-        if (quest.complete) {
-          quest.complete.call(array, result);
-          Game.Object.set(array, type, 0, ref, r1, r2)
-          break;
+    if (quest.execute) {
+      var output = quest.output && (Game.output[quest.output] || (Game.output[quest.output] = {}))
+      var result = quest.execute.call(array, argument, output && output[id], quest, value, ref, r1, r2);
+      if (!quest.condition || quest.condition.call(array, argument, result, quest, value, ref, r1, r2)) { 
+        if (!quest.complete || quest.complete.call(array, argument, result, quest, value, ref, r1, r2)) {
+          if (quest.cleanup && quest.cleanup.call(array, argument, result, quest, value, ref, r1, r2)) {
+            
+            if (output)
+              output[id] = null;
+          }
+          //Game.Object.set(array, type, 0, ref, r1, r2)
+          //break;
         }
       }
+      if (output)
+        output[id] = result
+      var argument = result;
     } else {
       var o = Game.Object.get(array, t);
       if (!o)

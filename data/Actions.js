@@ -2,14 +2,96 @@ Game.merge('actions', {
   modes: {
     rest: {},
     sleep: {},
-    search: {
-      set: function(type) {
+
+
+    defend: {},
+    'return': {}
+  },
+
+  rest: {
+
+  },
+
+  process: {
+    output: 'do',
+
+    gather: {
+      execute: function(argument, output, quest) {
+
+      },
+      quickly: {
 
       }
     },
-    defend: {},
-    flee: {},
-    'return': {}
+
+    mine: {
+
+    },
+
+    cut: {
+
+    }
+  },
+  
+  search: {
+    execute: function(argument, output, quest) {
+      return Game.Object.walk(this, function(node, distance, meta, output) {
+        return this[quest.finder](argument, node, distance, meta, output)
+      }, quest.radius, quest.levels, output);
+    },
+
+    output: 'look',
+
+    levels: 4,
+
+    property: {
+      finder: 'finder',
+
+      quickly: {
+        radius: 1,
+        levels: 4
+      },
+      nearby: {
+      },
+      around: {
+        radius: 15,
+        levels: 1
+      }
+    }
+  },
+
+  navigate: {
+    output: 'walk',
+
+    around: {
+
+    },
+    away: {
+
+    },
+    there: {
+      input: 'point',
+
+      execute: function(input, output, quest) {
+        var result = input.result;
+        var finish = result[result.length - 1][0];
+        return Game.Object.walk(this, function(node, distance, meta, output) {
+          return this[quest.finder](finish, node, distance, meta, output)
+        }, quest.radius, null, output)
+      },
+      condition: function(argument, output, quest) {
+        return output.result.length == 2
+      },
+      complete: function() {
+      },
+
+      finder: 'walker',
+      radius: 4,
+
+      quickly: {
+
+      }
+    }
   },
 
   pose: {

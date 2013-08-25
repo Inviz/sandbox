@@ -1,0 +1,72 @@
+<head>
+  <base href=".." />
+</head>
+<body>
+<script src="source/Data.js"></script>
+<script src="source/Map.js"></script>
+<script src="source/Noise.js"></script>
+<script src="source/Object.js"></script>
+<script src="source/Time.js"></script>
+<script src="data/Properties.js"></script>
+<script src="data/Quests.js"></script>
+<script src="data/Resources.js"></script>
+<script src="data/Actions.js"></script>
+<script src="data/Creatures.js"></script>
+<script src="data/Items.js"></script>
+<script>
+
+  var canvas = document.createElement('canvas');
+  var ctx = canvas.getContext('2d');
+  canvas.width = 81// * 4
+  canvas.height =81// * 4
+  canvas.imageSmoothingEnabled = false
+  canvas.mozImageSmoothingEnabled = false
+  canvas.webkitImageSmoothingEnabled = false
+  var map = new Map(4);
+  map.scale = 10
+  map.zone = 1111
+  map.z = 4;
+
+  map.canvas = canvas;
+
+
+  var rabbit = Game('creatures.animals.vermin.rabbit');
+  map(11111835, rabbit)
+
+
+ //var rabbit2 = Game('creatures.animals.vermin.rabbit');
+ //map(11113172, rabbit2)
+ //var rabbit3 = Game('creatures.animals.vermin.rabbit');
+ //map(11113173, rabbit3)
+ //var rabbit4 = Game('creatures.animals.vermin.rabbit');
+ //map(11113174, rabbit4)
+ //var rabbit5 = Game('creatures.animals.vermin.rabbit');
+ //map(11113175, rabbit5)
+ //var rabbit6 = Game('creatures.animals.vermin.rabbit');
+ //map(11113176, rabbit6)
+
+  var bush = Game('creatures.plants.bushes.strawberry',
+      Game.valueOf('resources.food.plants.fruit', 10)
+  );
+  map(11118235, bush)
+  var time = 0;
+  console.profile(3)
+  var interval = parseInt(location.search.split('interval=')[1]);
+  if (interval)
+      setInterval(function() {
+
+          time = Time(time, map)
+          map.draw(rabbit);
+          if (!map.canvas.parentNode)
+          document.body.appendChild(map.canvas);
+      }, interval)
+  console.profileEnd(3)
+  //time = Time(time, map)
+  time = Time(time, map)
+  map.draw(rabbit);
+  //window.$tick = 3;
+  //console.error('tick 3')
+  document.body.appendChild(map.canvas);
+</script>
+
+</body>

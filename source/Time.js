@@ -9,15 +9,18 @@ Time = function(time, map) {
         var id = Game.Object.get(object, 'id');
 
         // move object on its path by one tile
-        if (Game.paths.walk) {
-          var path = Game.paths.walk[id];
-          if (path) {
-            var popped = path.pop();
-            var to = path[path.length - 1];
-            if (to) {
-              var from = Game.Object.get(object, 1);
-              Game.vectors[id] = map.vector(from, to[0])
-              map.move(from, to, object);
+        if (Game.output.walk) {
+          var cache = Game.output.walk[id];
+          if (cache) {
+            var path = cache.result;
+            if (path) {
+              var popped = path.pop();
+              var to = path[path.length - 1];
+              if (to) {
+                var from = Game.Object.get(object, 1);
+                Game.vectors[id] = map.vector(from, to[0])
+                map.move(from, to, object);
+              }
             }
           }
         }
@@ -32,8 +35,8 @@ Time = function(time, map) {
             prev = current) {
           var value = Game.valueOf(current);
           var type = Game[Game.typeOf(current)]
-          if (type.actions)
-            Game.Object.invoke(object, type, value);
+          if (type.steps)
+            Game.Object.invoke(object, type, value, null, null, null  , id);
         }
       }
     }

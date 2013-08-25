@@ -41,6 +41,9 @@ The game's going to be big, so there're multiple things that could be done separ
     gem install karma -g
     karma start
 
+    # Visit this URL for visualization
+    http://localhost:9876/debug.html?interval=100
+    
 # How to join or contact you?
 
 Name's Yaroslaff Fedin

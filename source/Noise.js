@@ -1,5 +1,6 @@
+// Noise function ported from glsl to be fully compatible
 
-function snoise(vx, vy) {
+function Noise(vx, vy) {
   var Cx =   0.211324865405187;  // (3.0-sqrt(3.0))/6.0
   var Cy =   0.366025403784439;  // 0.5*(sqrt(3.0)-1.0)
   var Cz =  -0.577350269189626;  // -1.0 + 2.0 * C.x
