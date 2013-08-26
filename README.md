@@ -36,14 +36,11 @@ The game's going to be big, so there're multiple things that could be done separ
 
 4) Anything else from the list of planned features. Contact me if you're not sure so we can figure out something useful and fun.
 
-# How to run tests?
+# How see examples?
+See examples/hunger.html:
 
-    gem install karma -g
-    karma start
+http://inviz.ru/sandbox/examples/hunger.html?interval=100
 
-    # Visit this URL for visualization
-    http://localhost:9876/debug.html?interval=100
-    
 # How to join or contact you?
 
 Name's Yaroslaff Fedin
