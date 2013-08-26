@@ -308,6 +308,8 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
 
           var quality = callback.call(this, next, distance, meta, output);
           
+          if (next[0] == 11116812)
+            debugger
           // register node as visited, store computed values
           if (distances[pos] == null || distances[pos] > distance) {
             locations[pos] = next[0]
@@ -352,15 +354,18 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
 
   // backtrace result
   if (!levels && !ret) {
-    if (!result.length) {
-      result.push(next);
+    var started = !result.length
+    if (started) {
+      //result.push(next);
     } else {
+      var j = 0;
+      var pos = locations.indexOf(next[0]);
+      if (pos > -1) {
+        if (qualities[pos] == -Infinity)
+          result.splice(j++, 0, next)
+      }
       var reuse = true;
-      var pos = locations.indexOf(next);
-      if (qualities[pos] == -Infinity)
-        result.push(next)
     }
-    var j = 0;
     output.queues = [];
     output.processed.length = 0;
     output.processed.length = output.locations.length;
@@ -372,7 +377,7 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
         if (p) {
           var prev = this(p);
           if (prev) {
-            if (result.indexOf(prev) > -1)
+            if (prev == start || result.indexOf(prev) > -1)
               break;
             if (reuse) {
               result.splice(j++, 0, prev);

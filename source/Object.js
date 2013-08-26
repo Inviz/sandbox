@@ -275,7 +275,7 @@ Game.Object.walk = function(object, callback, max, levels, output) {
 
     // increase max. range to visit more nodes
     if (levels == null) {
-      var prev = path[path.length - 2] || path[path.length - 1];
+      var prev = path[path.length - 1];
       if (prev) {
         var last = prev[0];
         var pos = output.locations.indexOf(last);

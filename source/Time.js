@@ -12,11 +12,11 @@ Time = function(time, map) {
         // move object on its path by one tile
         if (Game.output.walk) {
           var cache = Game.output.walk[id];
-          if (cache && cache.next) {
+          if (cache && cache.result.length) {
+            var next = cache.result.pop();
             var from = Game.Object.get(object, 1);
-            map.move(from, cache.next, object)
-            Game.vectors[id] = map.vector(from, cache.next[0]);
-            cache.next = null;
+            map.move(from, next, object)
+            Game.vectors[id] = map.vector(from, next[0]);
           } else {
             Game.vectors[id] = null;
           }

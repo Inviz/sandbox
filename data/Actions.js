@@ -25,6 +25,7 @@ Game.merge('actions', {
         return output == 3
       },
       complete: function(argument, output, quest) {
+        var subject = this;
         Game.Object.each(argument.result[0], function(object) {
           var resource = Game.Object.get(object, 'resources.food.plants.fruit');
           if (resource) {
@@ -34,7 +35,7 @@ Game.merge('actions', {
                   Game.valueOf('resources.food.plants.fruit', resource)
                 )
               )
-            this.push(
+            subject.push(
               Game.valueOf('properties.belonging.inventory.bag', 1, 'object', 
                 Game('items.organic.plants.berry', 
                   Game.valueOf('resources.food.plants.fruit', resource)
@@ -106,14 +107,10 @@ Game.merge('actions', {
           return this[quest.finder](finish, node, distance, meta, output)
         }, quest.radius, null, output)
         path.finish = finish;
-        if (path.result.length > 1) {
-          if (!path.next) {
-            path.result.pop();
-            var next = path.result[path.result.length - 1];
-            if (next != last)
-              path.next = next;
-          }
-        }
+        console.log(input && input.result.slice())
+        console.error('path', path && path.result.slice())  
+        
+        
         return path;
       },
       condition: function(input, output, quest) {
@@ -121,9 +118,7 @@ Game.merge('actions', {
         var finish = result[result.length - 1][0];
         if (window.$time >= 19)
           debugger
-        console.log(input && input.result.slice())
-        console.error('path', output && output.result.slice())  
-        return output && output.result.length < 2 && output.finish == finish
+        return output && output.result.length < 1 && output.finish == finish
       },
       complete: function() {
 
