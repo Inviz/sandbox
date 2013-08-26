@@ -4,25 +4,25 @@ Sandbox-style roleplaying massive online game with indirect character control an
 
 Runs both on clientside and server. 
 
-# What's done
+## What's done
 
 1) Basic data system
 2) Map walking
 3) Spiral searches and pathfinding
 4) Basic fractal map
 
-# Planned features
+## Planned features
 
 1) Behavior simulation
 2) Economy simulation
 3) City cimulation
 4) Procedurally generated world
-5) 520x520km world with full persistense
+5) 520x520km world with full persistense with 99 z-levels
 6) Fractal map with level of detail.
 7) Tree growing and renewable resources
 8) Quest generation
 
-# Can I help?
+## Can I help?
 
 Yes, please.
 
@@ -36,12 +36,12 @@ The game's going to be big, so there're multiple things that could be done separ
 
 4) Anything else from the list of planned features. Contact me if you're not sure so we can figure out something useful and fun.
 
-# How see examples?
+## How see examples?
 See examples/hunger.html:
 
 http://inviz.ru/sandbox/examples/hunger.html?interval=100
 
-# How to join or contact you?
+## How to join or contact you?
 
 Name's Yaroslaff Fedin
 invizko@gmail.com
