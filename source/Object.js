@@ -288,40 +288,39 @@ Game.Object.walk = function(object, callback, max, levels, output) {
   // launch pathfinding on a given map zoom level
   // may zoom out when reached pathfinding limit 
   var limit = (levels || 0) + 1
-  var result = output && output.result;
   loop: for (var level = 0; level < limit; level++) {
-
+    var result = output && output.result;
     // optimize path
     if (result && result.length) {
-      var i = levels ? level - 1 : result.length - 1
-      for (var node; node = result[i];) {
-        var pos = output.locations.indexOf(pos);
-        var distance = output.distances[pos];
-        var quality = callback.call(world, node, distance, i, output);
-        switch (quality) {
-          case -Infinity:
-            if (!levels || result[i + 1]) {
-              var j = levels ? i + 1 : i;
-              var removed = result.splice(j, result.length - i);
-              if (!levels) {
-                output.result = removed; 
-                break loop;
-              } else {
-                break loop;
+      var i = levels ? level - 2 : result.length - 1
+      for (var node;;) {
+        var node = result[i];
+        if (node) {
+          var pos = output.locations.indexOf(node[0]);
+          var distance = output.distances[pos];
+          var quality = callback.call(world, node, distance, i, output);
+          switch (quality) {
+            case -Infinity:
+              if (!levels || result[i + 1]) {
+                var j = levels ? i + 1 : i;
+                var removed = result.splice(j, result.length - i);
+                if (!levels)
+                  output.result = removed; 
               }
-            }
+              break loop;
+          }
         }
-        if (levels)
-          break;
-        else
+        if (levels) {
+          if (i == level - 1)
+            break;
+          i++
+        } else {
+          if (!node)
+            break;
           i--
+        }
       }
     }
-
-    if (levels && output
-    && output.qualities[output.qualities.length - 1] == -Infinity
-    && output.result[level] == null)
-      break;
 
     if (levels) {
 
@@ -343,8 +342,6 @@ Game.Object.walk = function(object, callback, max, levels, output) {
       if (level > 0)
         output = world.walk(start, callback, max, level - 1, vector, output)
     } else {
-      if (output && output.result.length)
-        debugger
       output = world.walk(start, callback, max, null, null, output)
     }
   }
