@@ -377,6 +377,7 @@ Game.Object.invoke = function(array, type, value, ref, r1, r2, id) {
           //Game.Object.set(array, type, 0, ref, r1, r2)
           //break;
         }
+        var result = cache;
       } else {
         var result = quest.execute.call(array, argument, cache, quest, value, ref, r1, r2);
       }

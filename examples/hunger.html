@@ -56,16 +56,20 @@
     console.error(number)
     return number
   }
-  map(random(4), Game('creatures.plants.bushes.strawberry',
-      Game.valueOf('resources.food.plants.fruit', 10)
-  ))
-  map(random(4), Game('creatures.plants.bushes.strawberry',
-      Game.valueOf('resources.food.plants.fruit', 10)
-  ))
+  var bushes = parseInt(location.search.split('bushes=')[1]) || 2;
 
+  for (var i = 0; i < bushes; i++) {
+    map(random(4), Game('creatures.plants.bushes.strawberry',
+        Game.valueOf('resources.food.plants.fruit', 10)
+    ))
+  }
 
-  var rabbit = Game('creatures.animals.vermin.rabbit');
-  map(random(4), rabbit)
+  var rabbits = parseInt(location.search.split('rabbits=')[1]) || 2;
+
+  for (var i = 0; i < rabbits; i++) {
+    var rabbit = Game('creatures.animals.vermin.rabbit');
+    map(random(4), rabbit)
+  }
   var time = 0;
   console.profile(3)
   var interval = parseInt(location.search.split('interval=')[1]);

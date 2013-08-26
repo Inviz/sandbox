@@ -17,7 +17,7 @@ Game.merge('actions', {
 
     gather: {
       execute: function(argument, output, quest) {
-        if (argument.result.length != 1) 
+        if (argument.result.length > 1) 
           return 0;
         return (output || 0) + 1;
       },
@@ -26,7 +26,13 @@ Game.merge('actions', {
       },
       complete: function(argument, output, quest) {
         var subject = this;
-        Game.Object.each(argument.result[0], function(object) {
+        var target = argument.result[0];
+        if (!target) {
+          var id = Game.Object.get(this, 'id');
+          var world = Game.maps[id] 
+          target = world(Game.Object.get(this, 1));
+        }
+        Game.Object.each(target, function(object) {
           var resource = Game.Object.get(object, 'resources.food.plants.fruit');
           if (resource) {
             Game.Object.set(object, 'resources.food.plants.fruit', 0)
@@ -107,18 +113,12 @@ Game.merge('actions', {
           return this[quest.finder](finish, node, distance, meta, output)
         }, quest.radius, null, output)
         path.finish = finish;
-        console.log(input && input.result.slice())
-        console.error('path', path && path.result.slice())  
-        
-        
         return path;
       },
       condition: function(input, output, quest) {
         var result = input.result;
         var finish = result[result.length - 1][0];
-        if (window.$time >= 19)
-          debugger
-        return output && output.result.length < 1 && output.finish == finish
+        return output && output.result.length < 1 && (!output.finish || output.finish == finish)
       },
       complete: function() {
 

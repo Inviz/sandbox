@@ -25,7 +25,7 @@ Time = function(time, map) {
         // increase values over time
         if (time % 4 == 0)
           Game.Object.increment(object, 'hunger', 1);
-        
+
         // execute object's current quest and subquests
         for (var current, prev; 
             (current = Game.Object.max(object, 'quests')) != prev;
@@ -35,6 +35,7 @@ Time = function(time, map) {
           if (type.steps)
             Game.Object.invoke(object, type, value, null, null, null, id);
         }
+        prev = current = null
       }
     }
   }
