@@ -100,7 +100,8 @@ Game.merge('actions', {
 
       execute: function(input, output, quest) {
         var result = input.result;
-        var finish = result[result.length - 1][0];
+        var last = result[result.length - 1]
+        var finish = last[0];
         var path = Game.Object.walk(this, function(node, distance, meta, output) {
           return this[quest.finder](finish, node, distance, meta, output)
         }, quest.radius, null, output)
@@ -108,7 +109,9 @@ Game.merge('actions', {
         if (path.result.length > 1) {
           if (!path.next) {
             path.result.pop();
-            path.next = path.result[path.result.length - 1];
+            var next = path.result[path.result.length - 1];
+            if (next != last)
+              path.next = next;
           }
         }
         return path;
@@ -116,10 +119,11 @@ Game.merge('actions', {
       condition: function(input, output, quest) {
         var result = input.result;
         var finish = result[result.length - 1][0];
-        if (window.$time >= 11)
+        if (window.$time >= 19)
           debugger
+        console.log(input && input.result.slice())
         console.error('path', output && output.result.slice())  
-        return output && output.result.length == 0 && output.finish == finish
+        return output && output.result.length < 2 && output.finish == finish
       },
       complete: function() {
 
