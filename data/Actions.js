@@ -119,7 +119,7 @@ Game.merge('actions', {
         if (window.$time >= 11)
           debugger
         console.error('path', output && output.result.slice())  
-        return output && output.result.length == 1 && output.finish == finish
+        return output && output.result.length == 0 && output.finish == finish
       },
       complete: function() {
 
