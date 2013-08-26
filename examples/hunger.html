@@ -15,8 +15,9 @@
 <script src="lib/Seed.js"></script>
 <script>
 
-  var seed = parseInt(location.search.split('seed=')[1]) || Math.random();
+  var seed = parseFloat(location.search.split('seed=')[1]) || Math.random();
   Math.seedrandom(seed)
+  document.write('seed: <b>' + seed + '</b><br>')
 </script>
 <script>
 
