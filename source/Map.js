@@ -304,7 +304,7 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
       var next    = this(this[direction](node[0]));
       if (!next) continue;
 
-      if ((queue.indexOf(next) == -1 && next != start) || vector) {
+      if ((queue.indexOf(next) == -1 && next != start)) {
         var pos = locations.indexOf(next[0])
         if (pos == -1)
           pos = locations.length;
