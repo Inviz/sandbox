@@ -78,9 +78,9 @@
   canvas.mozImageSmoothingEnabled = false
   canvas.webkitImageSmoothingEnabled = false
   if (location.search.indexOf('big') > -1) {
-    var map = new Map(1);
-    canvas.width = 81 * 4
-    canvas.height =81 * 4
+    var map = new Map(4, true);
+    canvas.width = 81 * 3
+    canvas.height =81 * 3
     map.scale = 4
     map.setZone(1115)
     var rmax = 5;

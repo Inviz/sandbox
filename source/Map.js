@@ -4,7 +4,7 @@
 //   Viewport maps are not aligned to grid (allow free scrolling)
 // * Maps of different scale can be nested via viewport map 
 //   Each of 9 maps in viewport represent a single tile in another map
-Map = function(width) {
+Map = function(width, scrolling) {
     if (width == null)
       return;
   if (this instanceof Map) {
@@ -14,11 +14,16 @@ Map = function(width) {
         map.put(tile, object)
       return tile;
     }
-    var array = Array(Math.pow(9, width));
     map.width = width;
     map.max = Math.pow(10, width)
+    if (scrolling)
+      var array = {};
+    else
+      var array = Array(map.max);
     map.array = array;
     map.objects = [];
+    if (scrolling)
+      map.scrolling = true
 
     if (!Game.maps)
       Game.maps = {};
@@ -31,14 +36,7 @@ Map = function(width) {
     if (!Map.indexOfs)
       Map.indexOfs = {};
     map.indexOfs = (Map.indexOfs[width] || (Map.indexOfs[width] = {}));
-    if (width == 1) {
-      for (var i = 0; i < 9; i++) {
-          map.array[i] = new Map(4);
-          map.array[i].viewport = this;
-          map.array[i].objects = map.objects;
-          map.array[i].maps = Game.maps;
-      }
-    }
+
     for (var property in this)
       map[property] = this[property];
     return map;
@@ -48,18 +46,18 @@ Map = function(width) {
 // return tile at location
 Map.prototype.tileAt = function(number, lazy) {
   var array = this.array;
-  if (this.width == 1) {
-    var first = this.array[0];
-    var width = first.width;
+  if (this.scrolling) {
+    var width = this.width;
     var digits = Math.floor(Math.log(number) / Math.LN10) + 1;
     var divider = Math.pow(10, Math.min(width, digits - this.z));
     var zone = Math.floor(number / divider);
     var remainder = number - zone * divider;
-    for (var i = 0; i < array.length; i++) {
-      if (array[i].zone == zone) 
-        return array[i].call(array[i], remainder)
+    var zoned = array[zone];
+    if (remainder) {
+      if (zoned)
+        return zoned.tileAt(remainder);
     }
-    return;
+    return zoned;
   }
   if (number > this.max) {
     var z = this.z || 1;
@@ -79,14 +77,16 @@ Map.prototype.tileAt = function(number, lazy) {
     }
   }
 
-  var position = this.indexOf(coordinates || number);
-  var tile = array[position];
+
+  var tile = array[coordinates || number];
   if (local) {
     if (this.viewport)
       tile = this.viewport(local)
   } else {
     if (!lazy && !tile) {
-      tile = array[position] = [
+      if (!this.normalize(parseInt(number), digits))
+        debugger
+      tile = array[coordinates || number] = [
         this.normalize(parseInt(number), digits)
       ]
     }
@@ -202,8 +202,12 @@ Map.prototype.normalize = function(number, digits) {
   return number;
 }
 
-
+// order of neighbhours to be visited
 Map.prototype.directions = ['north', 'east', 'south', 'west', 'northwest', 'northeast', 'southeast', 'southwest']
+
+// pattern to walk around the node
+Map.prototype.shifts = ['north', 'east', 'south', 'south', 'west', 'west', 'north', 'north'];
+
 var z = 0;
 
 // walk around the map
@@ -426,9 +430,6 @@ Map.prototype.indexOf = function(number) {
 
 // calculate distance between two coordinates
 Map.prototype.distance = function(a, b, type) {
-  if (this.width == 1)
-    return this.array[0].distance(a, b, type);
-
   // swap coordinates
   if (b > a) {
     var c = b;
@@ -628,33 +629,45 @@ Map.prototype.vector = function(from, to) {
 Map.prototype.setZone = function(number, callback) {
   this.z = Math.floor((Math.log(number) / Math.LN10) + 1);
   this.world = callback;
-  if (this.width === 1) {
+  if (this.scrolling) {
     this.zoned = number;
     var array = this.array;
-    if (array[0].zone) {
-      var unused = this.array.slice();
+    var first
+    var unused = []
+    for (var index in array) {
+      if (!first)
+        first = array[index];
+      unused.push(array[index])
+    }
+    if (first && first.zone) {
       var unset = []
-      this.each(function(position, tile, index) {
+      var result = {};
+      this.each(function(position, tile) {
         for (var i = 0; i < unused.length; i++)
           if (unused[i].zone == position) {
-            array[index] = unused[i];
+            result[position] = unused[i];
             unused.splice(i, 1);
             return;
           }
-        unset.push([position, index]);
+        unset.push(position);
       }, this, true)
       for (var i = 0, zone; zone = unset[i++];) {
         var z = unused.pop()
-        array[zone[1]] = z;
+        result[zone] = z;
         for (var j = 0; j < z.array.length; j++)
           if (z.array[j])
             z.array[j].length = 1;
-        z.setZone(zone[0], callback);
+        z.setZone(zone, callback);
       }
+      this.array = result;
     } else {
       this.each(function(position, tile) {
+        tile = this.array[position] = new Map(this.width);
+        tile.viewport = this;
+        tile.objects = map.objects;
+        tile.maps = Game.maps;
         tile.setZone(position, callback)
-      })
+      }, this, true)
     }
   } else {
     this.zone = number;
@@ -670,24 +683,27 @@ Map.prototype.setZone = function(number, callback) {
 
 // iterate tiles in 2d order (scan lines)
 Map.prototype.each = function(callback, bind, lazy) {
-  if (this.width === 1) {
+  if (this.scrolling) {
     var prefix = 0;
     var start = this.north(this.west(this.zoned));
+    var width = 1
   } else {
     var prefix = this.zone * Math.pow(10, this.width);
     var start = 0;
     for (var i = 0; i < this.width; i++)
       start += Math.pow(10, i);
+    var width = this.width;
   }
-  var width = Math.pow(9, this.width / 2)
+  var width = Math.pow(9, width / 2)
   var now = start;
   for (var i = 0; i < width; i++) {
     var prev = now;
     for (var j = 0; j < width; j++) {
       callback.call(bind || this, 
         prefix + now, 
-        this.width === 1 ? this.array[i * 3 + j] : this.tileAt(now, true), 
-        i * 3 + j)
+        this.array[now], 
+        now,
+        i * width + j)
       now = this.east(now) 
     }
     now = this.south(prev)
@@ -725,105 +741,113 @@ Map.prototype.draw = function(object) {
     }
   }
 
-
-  var index = 0;
-  var map = this.width == 1 ? this.array[index++] : this;
-  var canvas = this.canvas;
-  var context = canvas.getContext('2d')
-  var width = Math.pow(3, map.width)
-  var size = this.width == 1 ? width * 3 : width;
-  var pic = context.createImageData(size, size);
-  var data = pic.data;
-  if (index) {
-    for (var i = 0; i < 2; i++) {
-      for (var j = 0; j < width * 3; j++) {
-        if (j % 3 == 0) {
-          var pos = ((width * (i + 1)) + width * j * 3) * 4
-          data[pos] = 
-          data[pos + 1] = 
-          data[pos + 2] = 230
-          data[pos + 3] = 255
-        }
-      }
-    }
-    for (var i = 0; i < 2; i++) {
-      for (var j = 0; j < width * 3; j++) {
-        if (j % 3 == 0) {
-          var pos = (j + width * (i + 1) * 3 * width) * 4
-          data[pos] = 
-          data[pos + 1] = 
-          data[pos + 2] = 230
-          data[pos + 3] = 255
-        }
-      }
-    }
-  }
   var param = (location.search.match(/p=(\d+)/) || [0, null])[1]
   if (param) param = this(param)
-  for (; map;) {
-    if (index) {
-      var mX = ((index - 1) % 3) * width
-      var mY = Math.floor((index - 1) / 3) * width
-    }
-    for (var i = 0, j = map.array.length; i < j; i++) {
-        var value = map.array[i];
-        if (value !== undefined) {
-          if (index) {
-            var x = i % width ;
-            var y = Math.floor(i / width);
-            var pos = ((y + mY) * width * 3 + (x + mX)) * 4;
-          } else {
-            var pos = i * 4;
-          }
+    
+  var index = 0;
+  for (var property in this.array) {
+    if (!this.scrolling)
+      var map = this;
+    else
+      var map = this.array[property];
+    if (!canvas) {
+      var canvas = this.canvas;
+      var context = canvas.getContext('2d')
+      var width = Math.pow(3, map.width)
+      var size = this.scrolling ? width * 3 : width;
+      var pic = context.createImageData(size, size);
+      var data = pic.data;
 
-          Game.Object.each(value, function(object, type) {
-            Game.Object.identify(object, function(definition, type) {
-              switch (definition._reference) {
-                case 'table':
-                  data[pos] = 200;
-                  data[pos + 1] = 50;
-                  data[pos + 2] = 50;
-                  data[pos + 3] = 255;
-                  break;
-                case 'human': case 'rabbit':
-                  data[pos + 2] = 255;
-                  data[pos + 3] = 255;
-                  break;
-                case 'strawberry': case 'bed':
-                  data[pos + 1] = 255;
-                  data[pos + 3] = 255;
-                  break; 
-                default:
-              }
-            })
-          })
-          if (!data[pos + 3]) {
-            if (path && path.indexOf(value) > -1) {
-              data[pos] =
-              data[pos + 1] =
-              data[pos + 2] = 128
-              data[pos + 3] = 255;
-            } else if (g && g.indexOf(value[0]) > -1) {
-              data[pos] =
-              data[pos + 0] =
-              data[pos + 3] = 255;
-            } else if (q && q.indexOf(value[0]) > -1) {
-              data[pos] =
-              data[pos + 1] =
+      // draw borders in big map
+      if (this.scrolling) {
+        for (var i = 0; i < 2; i++) {
+          for (var j = 0; j < width * 3; j++) {
+            if (j % 3 == 0) {
+              var pos = ((width * (i + 1)) + width * j * 3) * 4
+              data[pos] = 
+              data[pos + 1] = 
               data[pos + 2] = 230
-              data[pos + 3] = 255;
+              data[pos + 3] = 255
             }
           }
-          if (param && param == value) {
-            data[pos + 1] = 170 
-            data[pos + 3] = data[pos + 3] || 255;
+        }
+        for (var i = 0; i < 2; i++) {
+          for (var j = 0; j < width * 3; j++) {
+            if (j % 3 == 0) {
+              var pos = (j + width * (i + 1) * 3 * width) * 4
+              data[pos] = 
+              data[pos + 1] = 
+              data[pos + 2] = 230
+              data[pos + 3] = 255
+            }
           }
         }
+      }
     }
-    if (this.width == 1) {
-      map = this.array[index++];
-    } else
-      break
+
+    if (this.scrolling) {
+      var mX = (index % 3) * width
+      var mY = Math.floor(index / 3) * width
+    }
+    var that = this;
+    map.each(function(position, tile, loc, i) {
+      if (!tile)
+        return;
+      if (that.scrolling) {
+        var x = i % width ;
+        var y = Math.floor(i / width);
+        var pos = ((y + mY) * width * 3 + (x + mX)) * 4;
+      } else {
+        var pos = i * 4;
+      }
+
+      Game.Object.each(tile, function(object, type) {
+        Game.Object.identify(object, function(definition, type) {
+          switch (definition._reference) {
+            case 'table':
+              data[pos] = 200;
+              data[pos + 1] = 50;
+              data[pos + 2] = 50;
+              data[pos + 3] = 255;
+              break;
+            case 'human': case 'rabbit':
+              data[pos + 2] = 255;
+              data[pos + 3] = 255;
+              break;
+            case 'strawberry': case 'bed':
+              data[pos + 1] = 255;
+              data[pos + 3] = 255;
+              break; 
+            default:
+          }
+        })
+      })
+      if (!data[pos + 3]) {
+        if (path && path.indexOf(tile) > -1) {
+          data[pos] =
+          data[pos + 1] =
+          data[pos + 2] = 128
+          data[pos + 3] = 255;
+        } else if (g && g.indexOf(tile[0]) > -1) {
+          data[pos] =
+          data[pos + 0] =
+          data[pos + 3] = 255;
+        } else if (q && q.indexOf(tile[0]) > -1) {
+          data[pos] =
+          data[pos + 1] =
+          data[pos + 2] = 230
+          data[pos + 3] = 255;
+        }
+      }
+      if (param && param == tile) {
+        data[pos + 1] = 170 
+        data[pos + 3] = data[pos + 3] || 255;
+      }
+    });
+
+    if (!this.scrolling)
+      break;
+    index++
   }
   var pattern = this.pattern
   if (!pattern) {
@@ -848,11 +872,12 @@ Map.prototype.draw = function(object) {
   context.fillStyle = context.createPattern(pattern, 'repeat');
   context.fillRect(0, 0, pattern.width, pattern.height);
 
-  if (index) {
+  if (this.scrolling) {
     context.fillStyle = "#dddddd"
     context.font = "bold 7px sans-serif";
 
-    for (var i = 0; i < 9; i++) {
+    var i = 0;
+    for (var property in this.array) {
       if (i == 4)
         continue
       var mX = (i % 3) * width
@@ -869,7 +894,8 @@ Map.prototype.draw = function(object) {
         mY += width / 2
       if (Math.floor(i / 3) == 2)
         mY += width - 15
-      context.fillText(this.array[i].zone % 1000, mX, mY)
+      context.fillText(this.array[property].zone % 1000, mX, mY)
+      i++;
     }
   }
 }

@@ -64,7 +64,7 @@ describe('Map', function() {
         //canvas.style.width = '810px';
         //canvas.style.height = '810px';
 
-        var world = new Map(1);
+        var world = new Map(4, true);
         world.scale = 3
         world.canvas = canvas;
         world.setZone(155, function(tile, number) {
@@ -284,7 +284,7 @@ describe('Map', function() {
         var world = new Map(4);
         world.setZone(15555555)
 
-        var viewport = new Map(1);
+        var viewport = new Map(4, 1);
         world.viewport = viewport;
         viewport.canvas = canvas;
         viewport.setZone(155555556666, world)
