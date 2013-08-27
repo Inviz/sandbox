@@ -260,8 +260,11 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
   if (vector && levels) {
     var shifted = [];
     var weighted = [];
+    var queued = queue.slice()
     queues[index] = shifted
     queues[index + 1] = weighted;
+  } else {
+    var queued = queue
   }
 
   queue: for (var node = start; node; node = queue[queue.length - 1]) {
@@ -304,7 +307,7 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
       var next    = this(this[direction](node[0]));
       if (!next) continue;
 
-      if ((queue.indexOf(next) == -1 && next != start)) {
+      if ((queued.indexOf(next) == -1 && next != start) || vector) {
         var pos = locations.indexOf(next[0])
         if (pos == -1)
           pos = locations.length;
@@ -342,13 +345,17 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
 
           // add node to queue, preserve quality sort order
           var q = shifted || queue;
-          var w = weighted || weights;
-          var weight = quality + distance;
-          for (var k = q.length, n; n = q[k - 1]; k--)
-            if (w[k - 1] > weight)
-              break;
-          q.splice(k, 0, next)
-          w.splice(k, 0, weight)
+          if (!levels) {
+            var w = weighted || weights;
+            var weight = quality + distance;
+            for (var k = q.length, n; n = q[k - 1]; k--)
+              if (w[k - 1] > weight)
+                break;
+            w.splice(k, 0, weight)
+            q.splice(k, 0, next)
+          } else {
+            q.unshift(next)
+          }
         }
       }
     }
