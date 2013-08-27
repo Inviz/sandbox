@@ -2,7 +2,7 @@
 Time = function(time, map) {
   if (time == null)
     time = 0;
-  // console.group('Tick ' + time);
+   console.profile('Tick ' + time);
   if (map) {
     for (var i = 0, object; object = map.objects[i++];) {
       var creature = Game.Object.max(object, 'creatures.animals');
@@ -39,6 +39,6 @@ Time = function(time, map) {
       }
     }
   }
-  // console.groupEnd('Tick ' + time);
+   console.profileEnd('Tick ' + time);
   return time + 1;
 };

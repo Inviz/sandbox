@@ -308,8 +308,6 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
 
           var quality = callback.call(this, next, distance, meta, output);
           
-          if (next[0] == 11116812)
-            debugger
           // register node as visited, store computed values
           if (distances[pos] == null || distances[pos] > distance) {
             locations[pos] = next[0]

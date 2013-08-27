@@ -13,25 +13,88 @@
 <script src="data/Creatures.js"></script>
 <script src="data/Items.js"></script>
 <script src="lib/Seed.js"></script>
-<script>
+<style>
+  input {
+    font-size: 1em;
+  }
+  input[type=number] {
+    width: 3.5em;
+  }
+  input[type=text] {
+    width: 12em;
+  }
+  label ~ label {
+    margin-left: 1.5em;
+  }
+</style>
+<form>
+  <label for="seed">Seed:</label>
+  <input type="text" id="seed" name="seed" />
 
+
+  <label for="max">Max steps:</label>
+  <input type="number" id="max" name="max" />
+
+  <label for="interval">Interval:</label>
+  <input type="number" id="interval" name="interval" value="100" />
+
+  <label for="rabbits">Rabbits:</label>
+  <input type="number" id="rabbits" name="rabbits" value="1" />
+
+  <label for="bushes">Bushes:</label>
+  <input type="number" id="bushes" name="bushes" value="2" />
+
+  <label for="size">Big map?</label>
+  <input type="checkbox" id="size" name="size" value="big" />
+</form>
+<script> 
   var seed = parseFloat(location.search.split('seed=')[1]) || Math.random();
+  
   Math.seedrandom(seed)
-  document.write('seed: <b>' + seed + '</b><br>')
+
+  var form = document.getElementsByTagName('form')[0]
+  form.addEventListener('change', function() {
+    form.submit()
+  })
+  var inputs = form.getElementsByTagName('input');
+  for (var i = 0, input; input = inputs[i++];) {
+    var name = input.name;
+    var val = location.search.split(input.name + '=')[1] || '';
+    val = val.split('&')[0];
+    if (val) 
+      if (input.type == 'checkbox')
+        input.checked = true;
+      else
+        input.value = val;
+    else if (input.name == 'seed')
+      input.value = seed;
+  }
 </script>
 <script>
 
   var canvas = document.createElement('canvas');
   var ctx = canvas.getContext('2d');
-  canvas.width = 81// * 4
-  canvas.height =81// * 4
   canvas.imageSmoothingEnabled = false
   canvas.mozImageSmoothingEnabled = false
   canvas.webkitImageSmoothingEnabled = false
-  var map = new Map(4);
-  map.scale = 8
-  map.zone = 1111
-  map.z = 4;
+  if (location.search.indexOf('big') > -1) {
+    var map = new Map(1);
+    canvas.width = 81 * 4
+    canvas.height =81 * 4
+    map.scale = 4
+    map.setZone(1115)
+    var rmax = 5;
+    var prefix = 111;
+  } else {
+    canvas.width = 81
+    canvas.height =81
+    var map = new Map(4)
+    map.scale = 8;
+    map.zone = 1111
+    map.z = 4;
+    var rmax = 4;
+    var prefix = 1111;
+  }
 
   map.canvas = canvas;
 
@@ -48,18 +111,18 @@
  //var rabbit6 = Game('creatures.animals.vermin.rabbit');
  //map(11113176, rabbit6)
 
-  var prefix = 1111;
   var random = function(max) {
+    if (max == null)
+      max = rmax;
     var number = prefix
     for (var i = 0; i < max; i++)
       number = number * 10 + Math.floor(Math.random() * 9) + 1
-    console.error(number)
     return number
   }
   var bushes = parseInt(location.search.split('bushes=')[1]) || 2;
 
   for (var i = 0; i < bushes; i++) {
-    map(random(4), Game('creatures.plants.bushes.strawberry',
+    map(random(), Game('creatures.plants.bushes.strawberry',
         Game.valueOf('resources.food.plants.fruit', 10)
     ))
   }
@@ -68,7 +131,7 @@
 
   for (var i = 0; i < rabbits; i++) {
     var rabbit = Game('creatures.animals.vermin.rabbit');
-    map(random(4), rabbit)
+    map(random(), rabbit)
   }
   var time = 0;
   console.profile(3)

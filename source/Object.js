@@ -358,11 +358,11 @@ Game.Object.invoke = function(array, type, value, ref, r1, r2, id) {
     if (quest.execute) {
       var output = quest.output && (Game.output[quest.output] || (Game.output[quest.output] = {}))
       var cache = output && output[id];
-      if (cache == null)
-        console.info('step', [quest._path])
+      //if (cache == null)
+      //  console.info('step', [quest._path])
       if (quest.condition && quest.condition.call(array, argument, cache, quest, value, ref, r1, r2)) { 
         if (!quest.complete || quest.complete.call(array, argument, cache, quest, value, ref, r1, r2) !== false) {
-          console.info('done', [quest._path])
+          //console.info('done', [quest._path])
           if (quest.cleanup)
             quest.cleanup.call(array, argument, result, quest, value, ref, r1, r2);
 
@@ -370,7 +370,7 @@ Game.Object.invoke = function(array, type, value, ref, r1, r2, id) {
             output[id] = null;
 
           if (!type.steps[i]) {
-            console.log('cleanup', type._reference, array)
+            //console.log('cleanup', type._reference, array)
             Game.Object.set(array, type, 0)
             break;
           }

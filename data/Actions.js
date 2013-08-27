@@ -1,3 +1,6 @@
+
+var radius = parseInt(location.search.split('radius=')[1]) || 1;
+
 Game.merge('actions', {
   modes: {
     rest: {},
@@ -36,11 +39,6 @@ Game.merge('actions', {
           var resource = Game.Object.get(object, 'resources.food.plants.fruit');
           if (resource) {
             Game.Object.set(object, 'resources.food.plants.fruit', 0)
-            console.log(
-                Game('items.organic.plants.berry', 
-                  Game.valueOf('resources.food.plants.fruit', resource)
-                )
-              )
             subject.push(
               Game.valueOf('properties.belonging.inventory.bag', 1, 'object', 
                 Game('items.organic.plants.berry', 
@@ -81,8 +79,8 @@ Game.merge('actions', {
       finder: 'finder',
 
       quickly: {
-        radius: 1,
-        levels: 4
+        radius: radius,
+        levels: 6
       },
       nearby: {
       },
