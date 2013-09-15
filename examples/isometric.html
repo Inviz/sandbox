@@ -1,0 +1,573 @@
+<head>
+  <base href=".." />
+</head>
+<body>
+<script src="source/Data.js"></script>
+<script src="source/Map.js"></script>
+<script src="source/Object.js"></script>
+<script src="source/Time.js"></script>
+<script src="source/Reference.js"></script>
+<script src="source/Type.js"></script>
+<script src="source/GL.js"></script>
+<script src="data/Properties.js"></script>
+<script src="data/Quests.js"></script>
+<script src="data/Resources.js"></script>
+<script src="data/Actions.js"></script>
+<script src="data/Creatures.js"></script>
+<script src="data/Items.js"></script>
+<script src="lib/Seed.js"></script>
+<script src="lib/gl-matrix/common.js"></script>
+<script src="lib/gl-matrix/mat4.js"></script>
+<script src="lib/gl-matrix/vec3.js"></script>
+
+<style>
+
+  body, html {
+    padding: 0;
+    margin: 0;
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+  }
+
+  canvas ~ canvas {
+    width: 70px;
+    height: 70px;
+  }
+</style>
+
+<canvas id="canvas"></canvas>
+
+<script id="2d-vertex-shader" type="x-shader/x-vertex">
+  attribute vec2 position; // -1..1
+  attribute vec2 texture;  //  0..1
+
+  uniform vec2 viewport;
+  uniform vec2 scroll;
+  uniform mat4 matrix;
+  uniform mat4 camera;
+  uniform mat4 projection;
+  uniform mat4 orientation;
+
+  varying vec2 pixel;
+  varying vec2 tile;
+
+  void main() {
+    vec2 pos = position;
+    pos.y = - pos.y - 0.5;
+    pixel = ((pos + 1.0) / 2.0 * viewport) + scroll;
+    pixel.y *= 2.0;
+    tile = texture;
+    
+    gl_Position = vec4(position, 0, 1) * matrix * projection *camera;
+  }
+</script>
+
+<script id="2d-fragment-shader" type="x-shader/x-fragment">
+  precision mediump float;
+
+  uniform sampler2D map;
+  uniform sampler2D obstruction;
+  uniform sampler2D objects;
+
+  uniform sampler2D landscape;
+  uniform sampler2D terrain;
+
+  uniform sampler2D sprites64x64;
+  uniform sampler2D sprites64x90;
+  uniform sampler2D sprites128x90;
+
+  uniform vec2 mapSize;
+  uniform vec2 atlasSize;
+  uniform float tileSize;
+  uniform mat4 projection;
+  uniform mat4 orientation;
+
+  varying vec2 pixel;
+  varying vec2 tile;
+
+  vec2 getTilePosition(vec2 tile) {
+    vec2 cell = floor(tile * mapSize);
+
+    return vec2(
+      (cell.x - cell.y) * (tileSize) 
+        + (mapSize.x * tileSize ) - tileSize, 
+      (cell.x + cell.y) * (tileSize / 2.0) 
+    );
+  }
+
+  vec4 color(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift) {
+    vec2 offset = position * grid;
+    vec2 start = getTilePosition(tile + shift / mapSize);
+    vec2 diff = ((pixel - locals) - start);
+    vec2 point = locals + diff;
+    point.x += (grid.x - tileSize * 2.0);
+    point.y += (grid.y - tileSize) + 1.0;
+    if (point.x > 0.0 && point.x < grid.x && point.y > 0.0 && point.y < grid.y)
+      return texture2D(texture, (point + offset) / atlasSize);
+    else 
+      return vec4(0, 0, 0, 0);
+  }
+
+  vec4 getDependentColor(sampler2D map, sampler2D texture, vec2 locals, vec2 grid, vec2 shift) {
+    vec2 pos = floor(tile * mapSize + shift) / mapSize;
+    vec4 location = texture2D(map, pos);
+    vec2 position = floor(location.xy * 255.0);
+    return color(texture, locals, position, grid, shift);
+  }
+
+  vec4 getTerrainColor(vec2 locals, vec2 shift) {
+    float py = 1.0 / tileSize;
+    vec2 coordinates = tile * mapSize - floor(tile * mapSize);
+    //if  ((coordinates.x <= py && coordinates.y >= py) || (coordinates.x >= py && coordinates.y >//= py)) {
+    //  locals.x += 0.0;
+    //  locals.y += 1.0;
+    //}
+    return getDependentColor(map, terrain, locals, vec2(tileSize * 2.0, tileSize), shift);
+  }
+
+  vec4 getObjectColor(vec2 locals, vec2 shift) {
+    vec2 pos = floor(tile * mapSize + shift) / mapSize;
+    vec4 location = texture2D(objects, pos);
+    vec4 object = floor(location * 255.0);
+
+    if (object.a > 0.0) {
+      if (object.r > 200.0) {
+        return vec4(0, 0, 0, 0);
+      } else if (object.r > 100.0) {
+        return vec4(0, 0, 0, 0);
+      } else {
+        vec2 grid64x64 = vec2(tileSize * 2.0, tileSize * 2.0);
+        return color(sprites64x64, locals, object.xy, grid64x64, shift);
+      }
+    }
+    return vec4(0, 0, 0, 0);
+  }
+
+  vec4 getObstructedColor(vec2 locals, vec2 shift) {
+    vec2 now = floor(tile * mapSize + shift);
+    vec2 pos = now / mapSize;
+    vec4 obstructed = floor(texture2D(obstruction, pos) * 255.0);
+    vec4 color = vec4(0, 0, 0, 0);
+    vec2 point = shift + vec2(1, 1);
+    if (obstructed.a > 0.0) {
+      if (obstructed.r > 0.0) {
+        vec2 rOffset = vec2(
+          mod(obstructed.r - 1.0, 10.0),
+          floor(mod(obstructed.r - 1.0, 100.0) / 10.0)
+        );
+        if (now.x < mapSize.x - 1.0 && now.y < mapSize.y - 1.0) {
+          vec4 rC = getObjectColor(locals, point);
+          if (rC.a > 0.0)
+            return rC;
+        }
+        if (rOffset.y > 0.0) {
+          vec4 rY = getObjectColor(locals, point - vec2(rOffset.y, 0));
+          if (rY.a > 0.0)
+            return rY;
+        }
+        if (rOffset.x > 0.0) {
+          vec4 rX = getObjectColor(locals, point - vec2(0, rOffset.x));
+          if (rX.a > 0.0)
+            return rX;
+        }
+      }
+      //if (obstructed.g > 0.0) {
+      //  vec2 gOffset = vec2(mod(obstructed.g, 16.0), floor(obstructed.g / 16.0));
+      //  vec4 g = getObjectColor(locals, shift + gOffset);
+      //  if (g.a > 0.0)
+      //    return g;
+      //}
+      //if (obstructed.b > 0.0) {
+      //  vec2 bOffset = vec2(mod(obstructed.b, 16.0), floor(obstructed.b / 16.0));
+      //  vec4 b = getObjectColor(locals, shift + bOffset);
+      //  if (b.a > 0.0)
+      //    return b;
+      //}
+      //if (color.a < 1.0 && obstructed.a > 1.0) {
+      //  vec2 aOffset = vec2(mod((obstructed.a - 1.0), 16.0), floor((obstructed.a - 1.0) / 16.0))//;
+      //  vec4 a = getObjectColor(locals, shift + aOffset);
+      //  if (a.a > 0.0)
+      //    return a;
+      //}
+    }
+    return color;
+  }
+
+  void main() {
+    vec2 locals = pixel - getTilePosition(tile);
+    vec4 obstructed = getObstructedColor(locals, vec2(0, 0));
+    if (obstructed.a > 0.0) {
+      gl_FragColor = obstructed;
+    } else {
+      vec4 object = getObjectColor(locals, vec2(0, 0));
+      if (object.a > 0.0) {
+        gl_FragColor =  object;
+      } else {
+        vec4 terrain = getTerrainColor(locals, vec2(0, 0));
+        gl_FragColor =  terrain;
+      }
+    }
+  }
+</script>
+
+
+<script>
+  var options = {
+    zoom: 2,
+    mapSize: 32,
+    tileSize: 32
+  };
+  var seed = parseFloat(location.search.split('seed=')[1]) || Math.random();
+  
+  Math.seedrandom(seed)
+
+  var canvas    = document.getElementById('canvas');
+
+  var gl        = GL(canvas);
+  var vertex    = GL.Script(gl, '2d-vertex-shader')
+  var fragment  = GL.Script(gl, '2d-fragment-shader')
+  var program   = GL.Program(gl, [vertex, fragment])
+
+  // look up where the vertex data needs to go.
+  var position  = GL.Program.Attribute(gl, program, 'position');
+  var texture   = GL.Program.Attribute(gl, program, 'texture');
+
+  var tileSize    = GL.Program.Uniform(gl, program, 'tileSize');
+  var mapSize     = GL.Program.Uniform(gl, program, 'mapSize');
+  var atlasSize   = GL.Program.Uniform(gl, program, 'atlasSize');
+  var viewport    = GL.Program.Uniform(gl, program, 'viewport');
+  var scroll      = GL.Program.Uniform(gl, program, 'scroll');
+  var matrix      = GL.Program.Uniform(gl, program, 'matrix');
+  var camera      = GL.Program.Uniform(gl, program, 'camera');
+  var projection  = GL.Program.Uniform(gl, program, 'projection');
+  var orientation = GL.Program.Uniform(gl, program, 'orientation');
+
+  var map         = GL.Program.Uniform(gl, program, 'map');
+  var objects     = GL.Program.Uniform(gl, program, 'objects');
+  var obstruction = GL.Program.Uniform(gl, program, 'obstruction');
+
+
+  var geometry = [
+    //x  y  u  v
+      0,-0.5, 1, 1,
+     -1, 0,   0, 1,
+      1, 0,   1, 0,
+
+     -1, 0,   0, 1,
+      0, 0.5, 0, 0,
+      1, 0,   1, 0,
+  ];
+
+  var Textures = {
+    'terrain':        'examples/sprites/terrain.png',
+    'landscape':      'examples/sprites/landscape.png',
+    'sprites64x64':   'examples/sprites/sprites64x64.png',
+    'sprites64x90':   'examples/sprites/sprites64x90.png',
+    'sprites192x160': 'examples/sprites/sprites192x160.png'
+  };
+
+
+  var textures = {};
+  var loading = [];
+
+  for (var name in Textures) {
+    !function(name) {
+      loading.push(name);
+      load(Textures[name], function() {
+        var texture = textures[name] = {
+          image: this,
+          location: GL.Program.Uniform(gl, program, name) 
+        }
+        loading.pop();
+        if (!loading.length)
+          render()
+      })
+    }(name)
+  }
+
+  var getMap = function() {
+    var canvas = document.createElement('canvas')
+    var context = canvas.getContext('2d');
+    var height = options.mapSize, width = options.mapSize;
+    canvas.height = height;
+    canvas.width = width;
+    var data = context.createImageData(width, height);
+    for (var i = 0; i < width * height; i++) {
+      data.data[i * 4 + 0] = Math.floor(Math.random() * 10);
+      data.data[i * 4 + 1] = Math.floor(Math.random() * 2);
+      data.data[i * 4 + 2] = 0;
+      data.data[i * 4 + 3] = 255;
+    }
+    return data;
+    context.putImageData(data, 0, 0)
+    document.body.appendChild(canvas)
+    return canvas
+  }
+
+  var obstructObject = function(data, i, row, cell) { 
+    var x = i % options.mapSize;
+    var y = Math.floor(i / options.mapSize);
+    var offsetX = 0, offsetY = 0;
+    if (cell > 0) {
+      offsetX = cell;
+    } else {
+      offsetY = - cell;
+    }
+    x = x - row + offsetY;
+    y = y - row + offsetX;
+    if (x < 0 || y < 0 || x >= options.mapSize || y >= options.mapSize)
+      return;
+    var pos = ((y * options.mapSize) + x) * 4;
+    var d = data.data;
+    var channel = row - 1;
+    var old = Math.max(0, d[pos + channel] - 1);
+    var oY = Math.floor((old % 100) / 10);
+    var oX = old % 10;
+    var value = Math.max(oY, offsetY) * 10 + Math.max(oX, offsetX);
+    d[pos + channel] = value + 1;
+    if (!window.zz)
+      window.zz = {};
+    if (value == 12)
+      debugger
+    window.zz[value] = (window.zz[value] || 0) + 1;
+    if (d[pos + 3] == 0)
+      d[pos + 3] = 255; // set some alpha
+  }
+  var generateObject = function(data, obstruction, i) {
+    var size = Math.floor(Math.random() * 1);
+    switch (size) {
+      case 0:
+        data.data[i * 4 + 0] = Math.floor(Math.random() * 9);
+        data.data[i * 4 + 1] = Math.floor(Math.random() * 2);
+        obstructObject(obstruction, i, 1, -1);
+        obstructObject(obstruction, i, 1,  0);
+        obstructObject(obstruction, i, 1,  1);
+
+        break;
+      //case 1:
+      //  data.data[i * 4 + 0] = Math.floor(Math.random() * 6) + 100;
+      //  data.data[i * 4 + 1] = Math.floor(Math.random() * 1);
+//
+      //  obstructObject(obstruction, i, -1,  0);
+      //  obstructObject(obstruction, i, -1, -1);
+      //  obstructObject(obstruction, i,  0, -1);
+//
+      //  obstructObject(obstruction, i, -2,  -1);
+      //  obstructObject(obstruction, i, -2, -2);
+      //  obstructObject(obstruction, i,  -1, -2);
+//
+      //  obstructObject(obstruction, i, -3,  -2);
+      //  obstructObject(obstruction, i, -3, -3);
+      //  obstructObject(obstruction, i,  -2, -2);
+      //  break;
+      case 2:
+        data.data[i * 4 + 0] = Math.floor(Math.random() * 2) + 200;
+        data.data[i * 4 + 1] = Math.floor(Math.random() * 1);
+        break;
+    }
+    data.data[i * 4 + 3] = 255;
+    return data;
+  }
+
+  
+
+  var getThings = function() {
+    var canvas = document.createElement('canvas')
+    var context = canvas.getContext('2d');
+    var height = options.mapSize, width = options.mapSize;
+    canvas.height = height;
+    canvas.width = width;
+    var data = context.createImageData(width, height);
+
+    var obstruction = document.createElement('canvas')
+    var obstructionContext = obstruction.getContext('2d');
+    obstruction.height = height;
+    obstruction.width = width;
+    var obstructionData = obstructionContext.createImageData(width, height);
+
+    for (var i = 0; i < height * width / 4 ; i++) {
+      for (var pos; pos = Math.floor(Math.random() * (options.mapSize * options.mapSize));)
+        if (!data.data[pos * 4 + 3])
+          break; 
+      generateObject(data, obstructionData, pos);
+    }
+    context.putImageData(data, 0, 0)
+    obstructionContext.putImageData(obstructionData, 0, 0)
+    document.body.appendChild(canvas)
+    document.body.appendChild(obstruction)
+
+    return {
+      objects: data,
+      obstruction: obstructionData
+    }
+  }
+  //gl.enable(gl.CULL_FACE);
+  //gl.enable(gl.DEPTH_TEST)
+  var atlasImage, buffer;
+  var mapImage = getMap();
+  var things = getThings()
+  var objectsImage = things.objects;
+  var obstructionImage = things.obstruction;
+
+  var scrollX = 0; scrollY = 0;
+  var i = 0;
+  var mapTexture, atlasTexture
+  var speedX = 1, speedY = 1;
+
+  var depth = window.devicePixelRatio || 1;
+  var view = true
+  window.onresize = function() {
+    view = true;
+  }
+  function render() {
+    //if (i > 0)
+    console.profile(i);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    //console.profile(i);
+    // provide texture coordinates for the map.
+    if (!buffer) {
+      buffer = GL.Buffer(gl, 'array', new Float32Array(geometry));
+
+      // set meta data
+      gl.uniform2f(atlasSize, textures.terrain.image.width, textures.terrain.image.height);
+      gl.uniform2f(mapSize, mapImage.width, mapImage.height);
+      gl.uniform1f(tileSize, 32);
+
+      // iterate geometry in pairs of two
+      gl.enableVertexAttribArray(position);
+      gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 16, 0);
+
+      gl.enableVertexAttribArray(texture);
+      gl.vertexAttribPointer(texture, 2, gl.FLOAT, false, 16, 8);
+
+      // upload & assign textures
+      mapTexture = GL.Texture(gl, 0, mapImage, true)
+      objectsTexture = GL.Texture(gl, 1, objectsImage, true);
+      obstructionTexture = GL.Texture(gl, 2, obstructionImage, true)
+      
+
+      gl.uniform1i(map, 0);
+      gl.uniform1i(objects, 1);
+      gl.uniform1i(obstruction, 2);
+      var k = 2;
+      for (var name in textures) {
+        if (!textures[name].location)
+          continue
+        k++;
+        gl.uniform1i(textures[name].location, k);
+        GL.Texture(gl, k, textures[name].image, true)
+
+      }
+
+      
+    } else {
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+    }
+    if (view) {
+      canvas.width = window.innerWidth * depth;
+      canvas.height = window.innerHeight * depth;
+      gl.uniformMatrix4fv(camera, false, getCamera());
+      gl.uniformMatrix4fv(matrix, false, getMatrix());
+      gl.uniformMatrix4fv(projection, false, getProjection());
+      gl.uniformMatrix4fv(orientation, false, getOrientation());
+      view = null;
+    }
+    // set resolution
+    var h = gl.drawingBufferHeight;
+    var w = gl.drawingBufferWidth
+    var max = Math.max(mapImage.width, mapImage.height) * options.tileSize;
+    var total = Math.max(h, w)
+    var ratio = w / h;
+    gl.uniform2f(viewport, mapImage.width * options.tileSize * 2, mapImage.height * options.tileSize);
+    gl.viewport(0, 0, w, h);
+
+    gl.uniform2f(scroll, scrollX, scrollY);
+
+    // Draw the thing.
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    //console.profileEnd(i);
+
+    // update scrolling position
+    //scrollX = (scrollX + speedX)
+    //scrollY = (scrollY + speedY)
+    if (scrollX > mapImage.width * options.tileSize || scrollX < 0)
+      speedX = - speedX
+    if (scrollY > mapImage.height * options.tileSize || scrollY < 0)
+      speedY = - speedY
+    
+    // schedule next frame
+    if (i < 2)
+      requestAnimationFrame(function() {
+        render()
+      });
+    console.profileEnd(i);
+    i++;
+  }
+
+
+  function load(src, callback) {
+    var img = new Image;
+    img.onload = callback;
+    img.src = src;
+    return img;
+  }
+
+  function getCamera() {
+    var direction = mat4.create()
+    var camera = mat4.create()
+    
+    // set up camera direction
+    //mat4.lookAt(direction, [0, 0, 1], [0, 0, 0], [0, 1, 0])
+
+    // create and apply perspective
+    //mat4.perspective(camera, 90 * Math.PI / 180, window.innerWidth / window.innerHeight, 0.1, 1000)
+
+    //mat4.ortho(camera, -1, 1, -1, 1, -1, 1)
+
+    // handle canvas aspect ratio (makes everything squared)
+    camera[0] = 1 / (window.innerWidth / window.innerHeight)
+
+    //mat4.multiply(camera, camera, direction)
+    //mat4.multiply(camera, camera, projection)
+
+
+    return camera
+  }
+
+  function getOrientation() {
+
+    var orientation = mat4.create()
+    mat4.rotate(orientation, orientation, 90 * Math.PI / 180, [0, 0, 1]);
+
+    mat4.rotate(orientation, orientation, 60 * Math.PI / 180, [1, 0 , 0]);
+    mat4.rotate(orientation, orientation, 45 * Math.PI / 180, [0, 0, 1]);
+    //mat4.scale(orientation, orientation, [1, 1, 1])
+
+    return orientation;
+  };
+
+  function getProjection() {
+    // rotate view (isometric projection)
+    var projection = mat4.create()
+    //mat4.rotate(projection, projection, 45 * Math.PI / 180, [0, 0//, 1]);
+    //mat4.rotate(projection, projection, 60 * Math.PI / 180, [1, 0 //, 0]);
+    return projection;
+  }
+
+  function getMatrix() {
+    var matrix = mat4.create()
+
+    // scale by ratio
+    mat4.scale(matrix, matrix, [ (mapImage.width / mapImage.height), 1, 1])
+
+    // scale map up, to make units equal device pixels
+    var ratio = (mapImage.height * options.tileSize / window.innerHeight) * options.zoom// * 1.4
+    mat4.scale(matrix, matrix, [ ratio, ratio, ratio])
+    return matrix
+  }
+
+</script>
+

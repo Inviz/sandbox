@@ -1,0 +1,254 @@
+<head>
+  <base href=".." />
+</head>
+<body>
+<script src="source/Data.js"></script>
+<script src="source/Map.js"></script>
+<script src="source/Object.js"></script>
+<script src="source/Time.js"></script>
+<script src="source/Reference.js"></script>
+<script src="source/Type.js"></script>
+<script src="source/GL.js"></script>
+<script src="data/Properties.js"></script>
+<script src="data/Quests.js"></script>
+<script src="data/Resources.js"></script>
+<script src="data/Actions.js"></script>
+<script src="data/Creatures.js"></script>
+<script src="data/Items.js"></script>
+<script src="lib/Seed.js"></script>
+<script src="lib/gl-matrix/common.js"></script>
+<script src="lib/gl-matrix/mat4.js"></script>
+<script src="lib/gl-matrix/vec3.js"></script>
+
+<style>
+
+  body, html {
+    padding: 0;
+    margin: 0;
+  }
+</style>
+
+<canvas id="canvas"></canvas>
+
+<script id="2d-vertex-shader" type="x-shader/x-vertex">
+  attribute vec2 position; // -1..1
+  attribute vec2 texture;  //  0..1
+
+  uniform vec2 viewport;
+  uniform vec2 scroll;
+  uniform float tileSize;
+  uniform vec2 mapSize;
+  uniform mat4 matrix;
+  uniform mat4 camera;
+
+  varying vec2 pixel;
+  varying vec2 tile;
+
+
+  void main() {
+    pixel = (texture * viewport) + scroll;
+    tile = pixel * (1.0 / tileSize) * (1.0 / mapSize);
+    
+    gl_Position = vec4(position, 0, 1) * matrix * camera;
+  }
+</script>
+
+<script id="2d-fragment-shader" type="x-shader/x-fragment">
+  precision mediump float;
+
+  uniform sampler2D map;
+  uniform sampler2D atlas;
+
+  uniform vec2 mapSize;
+  uniform vec2 atlasSize;
+  uniform float tileSize;
+
+  varying vec2 pixel;
+  varying vec2 tile;
+
+
+  void main() {
+    vec4 location = texture2D(map, tile);
+    if (location.x == 1.0 && location.y == 1.0) {
+      discard;
+    };
+    vec2 offset = floor(location.xy * 256.0) * tileSize;
+    vec2 coordinates = mod(pixel, tileSize);
+    vec2 point = (offset + coordinates) * (1.0 / atlasSize);
+    gl_FragColor = texture2D(atlas, point);
+  }
+</script>
+
+
+<script>
+  var canvas    = document.getElementById('canvas');
+
+  var gl        = GL(canvas);
+  var vertex    = GL.Script(gl, '2d-vertex-shader')
+  var fragment  = GL.Script(gl, '2d-fragment-shader')
+  var program   = GL.Program(gl, [vertex, fragment])
+
+  // look up where the vertex data needs to go.
+  var position  = GL.Program.Attribute(gl, program, 'position');
+  var texture   = GL.Program.Attribute(gl, program, 'texture');
+
+  var tileSize  = GL.Program.Uniform(gl, program, 'tileSize');
+  var mapSize   = GL.Program.Uniform(gl, program, 'mapSize');
+  var atlasSize = GL.Program.Uniform(gl, program, 'atlasSize');
+  var viewport  = GL.Program.Uniform(gl, program, 'viewport');
+  var scroll    = GL.Program.Uniform(gl, program, 'scroll');
+  var matrix    = GL.Program.Uniform(gl, program, 'matrix');
+  var camera    = GL.Program.Uniform(gl, program, 'camera');
+
+  var map       = GL.Program.Uniform(gl, program, 'map');
+  var atlas     = GL.Program.Uniform(gl, program, 'atlas');
+
+  var geometry = [
+      //x  y  u  v
+      -1, -1, 0, 1,
+       1, -1, 1, 1,
+       1,  1, 1, 0,
+
+      -1, -1, 0, 1,
+       1,  1, 1, 0,
+      -1,  1, 0, 0
+  ];
+
+  //gl.enable(gl.CULL_FACE);
+  //gl.enable(gl.DEPTH_TEST)
+  var atlasImage, atlasImage2, mapImage, buffer;
+  load("examples/map.png", function() {
+    mapImage = this;
+    if (atlasImage && atlasImage2) render()
+  })
+  load("examples/tiles.png", function() {
+    atlasImage = this;
+    if (mapImage && atlasImage2) render()
+  })
+  load("examples/tiles2.png", function() {
+    atlasImage2 = this;
+    if (mapImage && atlasImage) render()
+  })
+  var scrollX = 0; scrollY = 0;
+  var i = 0;
+  var mapTexture, atlasTexture
+  var speedX = 1, speedY = 1;
+  var zoom = 1
+
+var depth = window.devicePixelRatio
+  var view = true
+  window.onresize = function() {
+    view = true;
+  }
+  function render() {
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    //console.profile(i);
+    // provide texture coordinates for the map.
+    if (!buffer) {
+      buffer = GL.Buffer(gl, 'array', new Float32Array(geometry));
+
+      // set meta data
+      gl.uniform2f(atlasSize, atlasImage.width, atlasImage.height);
+      gl.uniform2f(mapSize, mapImage.width, mapImage.height);
+      gl.uniform1f(tileSize, 16);
+
+      // iterate geometry in pairs of two
+      gl.enableVertexAttribArray(position);
+      gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 16, 0);
+
+      gl.enableVertexAttribArray(texture);
+      gl.vertexAttribPointer(texture, 2, gl.FLOAT, false, 16, 8);
+
+      // upload & assign textures
+      mapTexture = GL.Texture(gl, 0, mapImage, true)
+      gl.uniform1i(map, 0);
+    } else {
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+    }
+      atlasTexture = GL.Texture.call(atlasTexture, gl, 1, i++ % 10 < 5 ? atlasImage : atlasImage, true)
+      gl.uniform1i(atlas, 1);
+    if (view) {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+      gl.uniformMatrix4fv(camera, false, getCamera());
+      gl.uniformMatrix4fv(matrix, false, getMatrix());
+      view = null;
+    }
+    // set resolution
+    var h = gl.drawingBufferHeight;
+    var w = gl.drawingBufferWidth
+    var max = Math.max(mapImage.width, mapImage.height) * 16;
+    var total = Math.max(h, w)
+    var ratio = w / h;
+    gl.uniform2f(viewport, mapImage.width * 16, mapImage.height * 16);
+    gl.viewport(0, 0, w, h);
+
+    gl.uniform2f(scroll, scrollX, scrollY);
+
+    // Draw the thing.
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    //console.profileEnd(i);
+
+    // update scrolling position
+    scrollX = (scrollX + speedX)
+    //scrollY = (scrollY + speedY)
+    if (scrollX > mapImage.width * 16 || scrollX < 0)
+      speedX = - speedX
+    if (scrollY > mapImage.height * 16 || scrollY < 0)
+      speedY = - speedY
+    
+    // schedule next frame
+      requestAnimationFrame(render);
+  }
+
+
+  function load(src, callback) {
+    var img = new Image;
+    img.onload = callback;
+    img.src = src;
+    return img;
+  }
+
+  function getCamera() {
+    var direction = mat4.create()
+    var camera = mat4.create()
+    
+    // set up camera direction
+    //mat4.lookAt(direction, [0, 0, 1], [0, 0, 0], [0, 1, 0])
+
+    // create and apply perspective
+    //mat4.perspective(camera, 90 * Math.PI / 180, window.innerWidth / window.innerHeight, 0.1, 1000)
+
+    mat4.ortho(camera, 1, -1, -1, 1, -1, 1)
+
+    // handle canvas aspect ratio (makes everything squared)
+    camera[0] = 1 / (window.innerWidth / window.innerHeight)
+
+    //mat4.multiply(camera, camera, direction)
+    //mat4.multiply(camera, camera, projection)
+
+
+    return camera
+  }
+
+  function getMatrix() {
+    var matrix = mat4.create()
+
+    // scale by ratio
+    mat4.scale(matrix, matrix, [ (mapImage.width / mapImage.height), 1, 1])
+
+    // rotate the map (isometric projection)
+    mat4.rotate(matrix, matrix, 45 * Math.PI / 180, [0, 0, 1]);
+    mat4.rotate(matrix, matrix, 45 * Math.PI / 180, [-1, 0 , 0]);
+
+    // scale map up, to make units equal device pixels
+    var ratio = (mapImage.height * 16 / window.innerHeight) * zoom * 1.4
+    mat4.scale(matrix, matrix, [ ratio, ratio, ratio])
+
+
+
+    return matrix
+  }
+
+</script>
+
