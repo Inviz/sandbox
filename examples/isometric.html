@@ -76,8 +76,8 @@
   uniform sampler2D terrain;
 
   uniform sampler2D sprites64x64;
-  uniform sampler2D sprites64x90;
-  uniform sampler2D sprites128x90;
+  uniform sampler2D sprites64x160;
+  uniform sampler2D sprites192x160;
 
   uniform vec2 mapSize;
   uniform vec2 atlasSize;
@@ -103,7 +103,7 @@
     vec2 start = getTilePosition(tile + shift / mapSize);
     vec2 diff = ((pixel - locals) - start);
     vec2 point = locals + diff;
-    point.x += (grid.x - tileSize * 2.0);
+    point.x += (grid.x - tileSize * 2.0) / 2.0;
     point.y += (grid.y - tileSize) + 1.0;
     if (point.x > 0.0 && point.x < grid.x && point.y > 0.0 && point.y < grid.y)
       return texture2D(texture, (point + offset) / atlasSize);
@@ -134,10 +134,12 @@
     vec4 object = floor(location * 255.0);
 
     if (object.a > 0.0) {
-      if (object.r > 200.0) {
-        return vec4(0, 0, 0, 0);
-      } else if (object.r > 100.0) {
-        return vec4(0, 0, 0, 0);
+      if (object.r >= 200.0) {
+        vec2 grid192x160 = vec2(tileSize * 6.0, tileSize * 5.0);
+        return color(sprites192x160, locals, object.xy - vec2(200, 0), grid192x160, shift);
+      } else if (object.r >= 100.0) {
+        vec2 grid64x160 = vec2(tileSize * 2.0, tileSize * 5.0);
+        return color(sprites64x160, locals, object.xy - vec2(100, 0), grid64x160, shift);
       } else {
         vec2 grid64x64 = vec2(tileSize * 2.0, tileSize * 2.0);
         return color(sprites64x64, locals, object.xy, grid64x64, shift);
@@ -146,52 +148,80 @@
     return vec4(0, 0, 0, 0);
   }
 
+  vec4 getObstructedColorChannel(vec2 locals, vec2 shift, vec2 offset, float value, vec2 now) {
+    vec2 point = shift + offset;
+    if (value > 0.0) {
+      vec2 coords = vec2(
+        mod(value - 1.0, 10.0),
+        floor(mod(value - 1.0, 100.0) / 10.0)
+      );
+
+      if (now.x < mapSize.x - 1.0 && now.y < mapSize.y - 1.0) {
+        vec4 rC = getObjectColor(locals, point);
+        if (rC.a > 0.0)
+          return rC;
+      }
+      
+      if (coords.x > 0.0) {
+        vec4 rX = getObjectColor(locals, point - vec2(0, 1.0));
+        if (rX.a > 0.0)
+          return rX;
+      }
+
+      if (coords.x > 1.0) {
+        vec4 rX = getObjectColor(locals, point - vec2(0, 2.0));
+        if (rX.a > 0.0)
+          return rX;
+      }
+      if (coords.x > 2.0) {
+        vec4 rX = getObjectColor(locals, point - vec2(0, 3.0));
+        if (rX.a > 0.0)
+          return rX;
+      }
+
+      if (coords.y > 0.0) {
+        vec4 rY = getObjectColor(locals, point - vec2(1.0, 0));
+        if (rY.a > 0.0)
+          return rY;
+      }
+
+      if (coords.y > 1.0) {
+        vec4 rY = getObjectColor(locals, point - vec2(2.0, 0));
+        if (rY.a > 0.0)
+          return rY;
+      }
+
+      if (coords.y > 2.0) {
+        vec4 rY = getObjectColor(locals, point - vec2(3.0, 0));
+        if (rY.a > 0.0)
+          return rY;
+      }
+
+    }
+    return vec4(0, 0, 0, 0);
+  }
   vec4 getObstructedColor(vec2 locals, vec2 shift) {
     vec2 now = floor(tile * mapSize + shift);
     vec2 pos = now / mapSize;
     vec4 obstructed = floor(texture2D(obstruction, pos) * 255.0);
     vec4 color = vec4(0, 0, 0, 0);
-    vec2 point = shift + vec2(1, 1);
     if (obstructed.a > 0.0) {
-      if (obstructed.r > 0.0) {
-        vec2 rOffset = vec2(
-          mod(obstructed.r - 1.0, 10.0),
-          floor(mod(obstructed.r - 1.0, 100.0) / 10.0)
-        );
-        if (now.x < mapSize.x - 1.0 && now.y < mapSize.y - 1.0) {
-          vec4 rC = getObjectColor(locals, point);
-          if (rC.a > 0.0)
-            return rC;
-        }
-        if (rOffset.y > 0.0) {
-          vec4 rY = getObjectColor(locals, point - vec2(rOffset.y, 0));
-          if (rY.a > 0.0)
-            return rY;
-        }
-        if (rOffset.x > 0.0) {
-          vec4 rX = getObjectColor(locals, point - vec2(0, rOffset.x));
-          if (rX.a > 0.0)
-            return rX;
-        }
-      }
-      //if (obstructed.g > 0.0) {
-      //  vec2 gOffset = vec2(mod(obstructed.g, 16.0), floor(obstructed.g / 16.0));
-      //  vec4 g = getObjectColor(locals, shift + gOffset);
-      //  if (g.a > 0.0)
-      //    return g;
-      //}
-      //if (obstructed.b > 0.0) {
-      //  vec2 bOffset = vec2(mod(obstructed.b, 16.0), floor(obstructed.b / 16.0));
-      //  vec4 b = getObjectColor(locals, shift + bOffset);
-      //  if (b.a > 0.0)
-      //    return b;
-      //}
-      //if (color.a < 1.0 && obstructed.a > 1.0) {
-      //  vec2 aOffset = vec2(mod((obstructed.a - 1.0), 16.0), floor((obstructed.a - 1.0) / 16.0))//;
-      //  vec4 a = getObjectColor(locals, shift + aOffset);
-      //  if (a.a > 0.0)
-      //    return a;
-      //}
+      // lookup obstructions 4 tiles away (stored in alpha)
+      vec4 alpha = getObstructedColorChannel(locals, shift, vec2(4, 4), obstructed.a, now);
+      if (alpha.a > 0.0)
+        return alpha;
+      // lookup obstructions 3 tiles away (stored in blue)
+      vec4 blue = getObstructedColorChannel(locals, shift, vec2(3, 3), obstructed.b, now);
+      if (blue.a > 0.0)
+        return blue;
+      // lookup obstructions 2 tiles away (stored in green)
+      vec4 green = getObstructedColorChannel(locals, shift, vec2(2, 2), obstructed.g, now);
+      if (green.a > 0.0)
+        return green;
+      // lookup obstructions 1 tile away (stored in red)
+      vec4 red = getObstructedColorChannel(locals, shift, vec2(1, 1), obstructed.r, now);
+      if (red.a > 0.0)
+        return red;
     }
     return color;
   }
@@ -265,7 +295,7 @@
     'terrain':        'examples/sprites/terrain.png',
     'landscape':      'examples/sprites/landscape.png',
     'sprites64x64':   'examples/sprites/sprites64x64.png',
-    'sprites64x90':   'examples/sprites/sprites64x90.png',
+    'sprites64x160':   'examples/sprites/sprites64x160.png',
     'sprites192x160': 'examples/sprites/sprites192x160.png'
   };
 
@@ -295,6 +325,7 @@
     canvas.height = height;
     canvas.width = width;
     var data = context.createImageData(width, height);
+
     for (var i = 0; i < width * height; i++) {
       data.data[i * 4 + 0] = Math.floor(Math.random() * 10);
       data.data[i * 4 + 1] = Math.floor(Math.random() * 2);
@@ -328,16 +359,13 @@
     var oX = old % 10;
     var value = Math.max(oY, offsetY) * 10 + Math.max(oX, offsetX);
     d[pos + channel] = value + 1;
-    if (!window.zz)
-      window.zz = {};
-    if (value == 12)
-      debugger
-    window.zz[value] = (window.zz[value] || 0) + 1;
     if (d[pos + 3] == 0)
       d[pos + 3] = 255; // set some alpha
   }
-  var generateObject = function(data, obstruction, i) {
-    var size = Math.floor(Math.random() * 1);
+  var generateObject = function(data, obstruction, i, size, x, y) {
+    if (size == null)
+      var size = Math.floor(Math.random() * 3);
+    console.error(size)
     switch (size) {
       case 0:
         data.data[i * 4 + 0] = Math.floor(Math.random() * 9);
@@ -347,25 +375,47 @@
         obstructObject(obstruction, i, 1,  1);
 
         break;
-      //case 1:
-      //  data.data[i * 4 + 0] = Math.floor(Math.random() * 6) + 100;
-      //  data.data[i * 4 + 1] = Math.floor(Math.random() * 1);
-//
-      //  obstructObject(obstruction, i, -1,  0);
-      //  obstructObject(obstruction, i, -1, -1);
-      //  obstructObject(obstruction, i,  0, -1);
-//
-      //  obstructObject(obstruction, i, -2,  -1);
-      //  obstructObject(obstruction, i, -2, -2);
-      //  obstructObject(obstruction, i,  -1, -2);
-//
-      //  obstructObject(obstruction, i, -3,  -2);
-      //  obstructObject(obstruction, i, -3, -3);
-      //  obstructObject(obstruction, i,  -2, -2);
-      //  break;
+      case 1:
+        data.data[i * 4 + 0] = (x != null ? x : Math.floor(Math.random() * 6)) + 100;
+        data.data[i * 4 + 1] = y != null ? y : Math.floor(Math.random() * 1);
+        obstructObject(obstruction, i, 1, -1);
+        obstructObject(obstruction, i, 1,  0);
+        obstructObject(obstruction, i, 1,  1);
+        obstructObject(obstruction, i, 2, -1);
+        obstructObject(obstruction, i, 2,  0);
+        obstructObject(obstruction, i, 2,  1);
+        obstructObject(obstruction, i, 3, -1);
+        obstructObject(obstruction, i, 3,  0);
+        obstructObject(obstruction, i, 3,  1);
+        obstructObject(obstruction, i, 4, -1);
+        obstructObject(obstruction, i, 4,  0);
+        obstructObject(obstruction, i, 4,  1);
+        break;
       case 2:
-        data.data[i * 4 + 0] = Math.floor(Math.random() * 2) + 200;
-        data.data[i * 4 + 1] = Math.floor(Math.random() * 1);
+        data.data[i * 4 + 0] = (x != null ? x : Math.floor(Math.random() * 2)) + 200;
+        data.data[i * 4 + 1] = y != null ? y : Math.floor(Math.random() * 1);
+        obstructObject(obstruction, i, 1, -1);
+        obstructObject(obstruction, i, 1,  0);
+        obstructObject(obstruction, i, 1,  1);
+        obstructObject(obstruction, i, 2, -2);
+        obstructObject(obstruction, i, 2, -1);
+        obstructObject(obstruction, i, 2,  0);
+        obstructObject(obstruction, i, 2,  1);
+        obstructObject(obstruction, i, 2,  2);
+        obstructObject(obstruction, i, 3, -3);
+        obstructObject(obstruction, i, 3, -2);
+        obstructObject(obstruction, i, 3, -1);
+        obstructObject(obstruction, i, 3,  0);
+        obstructObject(obstruction, i, 3,  1);
+        obstructObject(obstruction, i, 3,  2);
+        obstructObject(obstruction, i, 3,  3);
+        obstructObject(obstruction, i, 4, -3);
+        obstructObject(obstruction, i, 4, -2);
+        obstructObject(obstruction, i, 4, -1);
+        obstructObject(obstruction, i, 4,  0);
+        obstructObject(obstruction, i, 4,  1);
+        obstructObject(obstruction, i, 4,  2);
+        obstructObject(obstruction, i, 4,  3);
         break;
     }
     data.data[i * 4 + 3] = 255;
@@ -388,7 +438,16 @@
     obstruction.width = width;
     var obstructionData = obstructionContext.createImageData(width, height);
 
-    for (var i = 0; i < height * width / 4 ; i++) {
+    //generateObject(data, obstructionData, 425, 2, 1, 0);
+    //generateObject(data, obstructionData, 425 - 1, 2, 1, 0);
+    //generateObject(data, obstructionData, 425 - 32 - 1, 2, 1, 0);
+    //generateObject(data, obstructionData, 425 - 32, 2, 1, 0);
+    //generateObject(data, obstructionData, 53, 1, 1, 0);
+    //generateObject(data, obstructionData, 54, 1, 1, 0);
+    //generateObject(data, obstructionData, 38, 1, 1, 0);
+    //return data;
+    
+    for (var i = 0; i < width * height / 5 ; i++) {
       for (var pos; pos = Math.floor(Math.random() * (options.mapSize * options.mapSize));)
         if (!data.data[pos * 4 + 3])
           break; 
