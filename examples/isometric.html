@@ -167,22 +167,17 @@
         if (rX.a > 0.0)
           return rX;
       }
+      if (coords.y > 0.0) {
+        vec4 rY = getObjectColor(locals, point - vec2(1.0, 0));
+        if (rY.a > 0.0)
+          return rY;
+      }
+
 
       if (coords.x > 1.0) {
         vec4 rX = getObjectColor(locals, point - vec2(0, 2.0));
         if (rX.a > 0.0)
           return rX;
-      }
-      if (coords.x > 2.0) {
-        vec4 rX = getObjectColor(locals, point - vec2(0, 3.0));
-        if (rX.a > 0.0)
-          return rX;
-      }
-
-      if (coords.y > 0.0) {
-        vec4 rY = getObjectColor(locals, point - vec2(1.0, 0));
-        if (rY.a > 0.0)
-          return rY;
       }
 
       if (coords.y > 1.0) {
@@ -195,6 +190,11 @@
         vec4 rY = getObjectColor(locals, point - vec2(3.0, 0));
         if (rY.a > 0.0)
           return rY;
+      }
+      if (coords.x > 2.0) {
+        vec4 rX = getObjectColor(locals, point - vec2(0, 3.0));
+        if (rX.a > 0.0)
+          return rX;
       }
 
     }
@@ -438,21 +438,21 @@
     obstruction.width = width;
     var obstructionData = obstructionContext.createImageData(width, height);
 
-    //generateObject(data, obstructionData, 425, 2, 1, 0);
+    generateObject(data, obstructionData, 425, 2, 1, 0);
     //generateObject(data, obstructionData, 425 - 1, 2, 1, 0);
     //generateObject(data, obstructionData, 425 - 32 - 1, 2, 1, 0);
-    //generateObject(data, obstructionData, 425 - 32, 2, 1, 0);
+    generateObject(data, obstructionData, 425 + 32 - 1, 2, 2, 0);
     //generateObject(data, obstructionData, 53, 1, 1, 0);
     //generateObject(data, obstructionData, 54, 1, 1, 0);
     //generateObject(data, obstructionData, 38, 1, 1, 0);
     //return data;
     
-    for (var i = 0; i < width * height / 5 ; i++) {
-      for (var pos; pos = Math.floor(Math.random() * (options.mapSize * options.mapSize));)
-        if (!data.data[pos * 4 + 3])
-          break; 
-      generateObject(data, obstructionData, pos);
-    }
+    //for (var i = 0; i < width * height / 5 ; i++) {
+    //  for (var pos; pos = Math.floor(Math.random() * (options.mapSize * options.mapSize));)
+    //    if (!data.data[pos * 4 + 3])
+    //      break; 
+    //  generateObject(data, obstructionData, pos);
+    //}
     context.putImageData(data, 0, 0)
     obstructionContext.putImageData(obstructionData, 0, 0)
     document.body.appendChild(canvas)
