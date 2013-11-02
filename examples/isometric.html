@@ -2,12 +2,19 @@
   <base href=".." />
 </head>
 <body>
-<script src="source/Data.js"></script>
+<script src="source/Type.js"></script>
+<script src="source/Property.js"></script>
 <script src="source/Map.js"></script>
+<script src="source/Path.js"></script>
+<script src="source/Quest.js"></script>
+<script src="source/Action.js"></script>
 <script src="source/Object.js"></script>
+<script src="source/Property.js"></script>
+<script src="source/Value.js"></script>
+<script src="source/Coordinates.js"></script>
+<script src="source/Location.js"></script>
 <script src="source/Time.js"></script>
 <script src="source/Reference.js"></script>
-<script src="source/Type.js"></script>
 <script src="source/GL.js"></script>
 <script src="data/Properties.js"></script>
 <script src="data/Quests.js"></script>
@@ -98,11 +105,11 @@
     );
   }
 
-  vec4 color(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift) {
+  vec4 color(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift, vec2 translate) {
     vec2 offset = position * grid;
     vec2 start = getTilePosition(tile + shift / mapSize);
     vec2 diff = ((pixel - locals) - start);
-    vec2 point = locals + diff;
+    vec2 point = locals + diff + translate;
     point.x += (grid.x - tileSize * 2.0) / 2.0;
     point.y += (grid.y - tileSize) + 1.0;
     if (point.x > 0.0 && point.x < grid.x && point.y > 0.0 && point.y < grid.y)
@@ -111,118 +118,158 @@
       return vec4(0, 0, 0, 0);
   }
 
-  vec4 getDependentColor(sampler2D map, sampler2D texture, vec2 locals, vec2 grid, vec2 shift) {
+  vec4 getDependentColor(sampler2D map, sampler2D texture, vec2 locals, vec2 grid, vec2 shift, vec2 translate) {
     vec2 pos = floor(tile * mapSize + shift) / mapSize;
     vec4 location = texture2D(map, pos);
     vec2 position = floor(location.xy * 255.0);
-    return color(texture, locals, position, grid, shift);
+    return color(texture, locals, position, grid, shift, translate);
   }
 
   vec4 getTerrainColor(vec2 locals, vec2 shift) {
-    float py = 1.0 / tileSize;
-    vec2 coordinates = tile * mapSize - floor(tile * mapSize);
-    //if  ((coordinates.x <= py && coordinates.y >= py) || (coordinates.x >= py && coordinates.y >//= py)) {
-    //  locals.x += 0.0;
-    //  locals.y += 1.0;
-    //}
-    return getDependentColor(map, terrain, locals, vec2(tileSize * 2.0, tileSize), shift);
+    float py = tileSize;
+    vec2 coordinates = (tile * mapSize - floor(tile * mapSize));
+    vec2 translate = vec2(0, 0);
+    float pixel = 1.0 - 1.0 / tileSize;
+    if ((coordinates.x >= pixel && coordinates.y >  1.0 / tileSize) 
+    || (coordinates.y >= pixel && coordinates.x > 1.0 / tileSize) )
+      translate.y -= 1.0;
+
+    return getDependentColor(map, terrain, locals, vec2(tileSize * 2.0, tileSize), shift, translate);
   }
 
   vec4 getObjectColor(vec2 locals, vec2 shift) {
-    vec2 pos = floor(tile * mapSize + shift) / mapSize;
+    vec2 now = tile * mapSize + shift;
+    if (now.y > mapSize.y || now.x > mapSize.x)
+      return vec4(0, 0, 0, 0);
+    vec2 pos = floor(now) / mapSize;
     vec4 location = texture2D(objects, pos);
     vec4 object = floor(location * 255.0);
+    vec2 translate = vec2(0, 0);
 
     if (object.a > 0.0) {
-      if (object.r >= 200.0) {
+      if (object.x >= 200.0) {
         vec2 grid192x160 = vec2(tileSize * 6.0, tileSize * 5.0);
-        return color(sprites192x160, locals, object.xy - vec2(200, 0), grid192x160, shift);
-      } else if (object.r >= 100.0) {
+        object.x -= 200.0;
+        return color(sprites192x160, locals, object.xy , grid192x160, shift, translate);
+      } else if (object.x >= 100.0) {
+        object.x -= 100.0;
         vec2 grid64x160 = vec2(tileSize * 2.0, tileSize * 5.0);
-        return color(sprites64x160, locals, object.xy - vec2(100, 0), grid64x160, shift);
+        return color(sprites64x160, locals, object.xy, grid64x160, shift, translate);
       } else {
         vec2 grid64x64 = vec2(tileSize * 2.0, tileSize * 2.0);
-        return color(sprites64x64, locals, object.xy, grid64x64, shift);
+        return color(sprites64x64, locals, object.xy, grid64x64, shift, translate);
       }
     }
     return vec4(0, 0, 0, 0);
   }
 
-  vec4 getObstructedColorChannel(vec2 locals, vec2 shift, vec2 offset, float value, vec2 now) {
-    vec2 point = shift + offset;
-    if (value > 0.0) {
-      vec2 coords = vec2(
-        mod(value - 1.0, 10.0),
-        floor(mod(value - 1.0, 100.0) / 10.0)
-      );
-
-      if (now.x < mapSize.x - 1.0 && now.y < mapSize.y - 1.0) {
-        vec4 rC = getObjectColor(locals, point);
-        if (rC.a > 0.0)
-          return rC;
-      }
-      
-      if (coords.x > 0.0) {
-        vec4 rX = getObjectColor(locals, point - vec2(0, 1.0));
-        if (rX.a > 0.0)
-          return rX;
-      }
-      if (coords.y > 0.0) {
-        vec4 rY = getObjectColor(locals, point - vec2(1.0, 0));
-        if (rY.a > 0.0)
-          return rY;
-      }
-
-
-      if (coords.x > 1.0) {
-        vec4 rX = getObjectColor(locals, point - vec2(0, 2.0));
-        if (rX.a > 0.0)
-          return rX;
-      }
-
-      if (coords.y > 1.0) {
-        vec4 rY = getObjectColor(locals, point - vec2(2.0, 0));
-        if (rY.a > 0.0)
-          return rY;
-      }
-
-      if (coords.y > 2.0) {
-        vec4 rY = getObjectColor(locals, point - vec2(3.0, 0));
-        if (rY.a > 0.0)
-          return rY;
-      }
-      if (coords.x > 2.0) {
-        vec4 rX = getObjectColor(locals, point - vec2(0, 3.0));
-        if (rX.a > 0.0)
-          return rX;
-      }
-
-    }
-    return vec4(0, 0, 0, 0);
+  vec4 blend(vec4 color, vec4 overlay, float mode) {
+    if (color.a == 1.0)
+      return color;
+    mode = (mode - 1.0) / 100.0;
+    return overlay;
   }
+
+
+
+  vec4 getObstructedColorChannelX(vec2 locals, vec2 shift, float row, float pos, float value, vec2 now, vec4 color) {
+    float y = floor(mod(value - 1.0, 100.0) / 10.0);
+    if (y > 0.0) {
+      vec4 result = getObjectColor(locals, vec2(shift.x + row - pos, shift.y + row));
+      if (result.a > 0.0)
+        return blend(color, result, value);
+    }
+    return color;
+  }
+
+  vec4 getObstructedColorChannelY(vec2 locals, vec2 shift, float row, float pos, float value, vec2 now, vec4 color) {
+    float x = mod(value - 1.0, 10.0);
+    if (x >= pos) {
+      vec4 result = getObjectColor(locals, vec2(shift.x + row, shift.y + row - pos));
+      if (result.a > 0.0)
+        return blend(color, result, value);
+    }
+    return color;
+  }
+
+  vec4 getObstructedColorChannelC(vec2 locals, vec2 shift, float row, float value, vec2 now, vec4 color) {
+    //if (now.x < mapSize.x - 1.0 && now.y < mapSize.y - 1.0) {
+      vec4 result = getObjectColor(locals, shift + row);
+      if (result.a > 0.0)
+        return blend(color, result, value);
+    //}
+    return color;
+  }
+
+
   vec4 getObstructedColor(vec2 locals, vec2 shift) {
     vec2 now = floor(tile * mapSize + shift);
     vec2 pos = now / mapSize;
-    vec4 obstructed = floor(texture2D(obstruction, pos) * 255.0);
+    vec4 location = texture2D(obstruction, pos);
+    vec4 object = floor(location * 255.0);
     vec4 color = vec4(0, 0, 0, 0);
-    if (obstructed.a > 0.0) {
-      // lookup obstructions 4 tiles away (stored in alpha)
-      vec4 alpha = getObstructedColorChannel(locals, shift, vec2(4, 4), obstructed.a, now);
-      if (alpha.a > 0.0)
-        return alpha;
-      // lookup obstructions 3 tiles away (stored in blue)
-      vec4 blue = getObstructedColorChannel(locals, shift, vec2(3, 3), obstructed.b, now);
-      if (blue.a > 0.0)
-        return blue;
-      // lookup obstructions 2 tiles away (stored in green)
-      vec4 green = getObstructedColorChannel(locals, shift, vec2(2, 2), obstructed.g, now);
-      if (green.a > 0.0)
-        return green;
-      // lookup obstructions 1 tile away (stored in red)
-      vec4 red = getObstructedColorChannel(locals, shift, vec2(1, 1), obstructed.r, now);
-      if (red.a > 0.0)
-        return red;
+
+    if (object.a == 0.0)
+      return color;
+
+    // 4th row
+    if (object.a > 0.0) {
+      color = getObstructedColorChannelC(locals, shift, 4.0, object.a, now, color);
+      color = getObstructedColorChannelY(locals, shift, 4.0, 1.0, object.a, now, color);
+      color = getObstructedColorChannelX(locals, shift, 4.0, 1.0, object.a, now, color);
     }
+
+    // 3d row
+    if (object.a > 0.0)
+      color = getObstructedColorChannelY(locals, shift, 4.0, 2.0, object.a, now, color);
+    if (object.b > 0.0)
+      color = getObstructedColorChannelC(locals, shift, 3.0, object.b, now, color);
+    if (object.a > 0.0)
+      color = getObstructedColorChannelX(locals, shift, 4.0, 2.0, object.a, now, color);
+    if (object.a > 0.0)
+      color = getObstructedColorChannelY(locals, shift, 4.0, 3.0, object.a, now, color);
+    if (object.b > 0.0)
+      color = getObstructedColorChannelY(locals, shift, 3.0, 1.0, object.b, now, color);
+    if (object.b > 0.0)
+      color = getObstructedColorChannelX(locals, shift, 3.0, 1.0, object.b, now, color);
+    if (object.a > 0.0)
+      color = getObstructedColorChannelX(locals, shift, 4.0, 3.0, object.a, now, color);
+
+
+    // 2nd row
+    if (object.a > 0.0)
+      color = getObstructedColorChannelY(locals, shift, 4.0, 4.0, object.a, now, color);
+    if (object.b > 0.0)
+      color = getObstructedColorChannelY(locals, shift, 3.0, 2.0, object.b, now, color);
+    if (object.g > 0.0)
+      color = getObstructedColorChannelC(locals, shift, 2.0, object.g, now, color);
+    if (object.b > 0.0)
+      color = getObstructedColorChannelX(locals, shift, 3.0, 2.0, object.b, now, color);
+    if (object.a > 0.0)
+      color = getObstructedColorChannelX(locals, shift, 4.0, 4.0, object.a, now, color);
+    if (object.b > 0.0)
+      color = getObstructedColorChannelY(locals, shift, 3.0, 3.0, object.b, now, color);
+    if (object.g > 0.0)
+      color = getObstructedColorChannelY(locals, shift, 2.0, 1.0, object.g, now, color);
+    if (object.g > 0.0)
+      color = getObstructedColorChannelX(locals, shift, 2.0, 1.0, object.g, now, color);
+    if (object.b > 0.0)
+      color = getObstructedColorChannelX(locals, shift, 3.0, 3.0, object.b, now, color);
+
+
+    // 1st row
+    if (object.g > 0.0)
+      color = getObstructedColorChannelY(locals, shift, 2.0, 2.0, object.g, now, color);
+    if (object.r > 0.0)
+      color = getObstructedColorChannelC(locals, shift, 1.0, object.r, now, color);
+    if (object.g > 0.0)
+      color = getObstructedColorChannelX(locals, shift, 2.0, 2.0, object.g, now, color);
+    if (object.r > 0.0)
+      color = getObstructedColorChannelY(locals, shift, 1.0, 1.0, object.r, now, color);
+    if (object.r > 0.0)
+      color = getObstructedColorChannelX(locals, shift, 1.0, 1.0, object.r, now, color);
+
+
     return color;
   }
 
@@ -440,19 +487,20 @@
 
     generateObject(data, obstructionData, 425, 2, 1, 0);
     //generateObject(data, obstructionData, 425 - 1, 2, 1, 0);
-    //generateObject(data, obstructionData, 425 - 32 - 1, 2, 1, 0);
-    generateObject(data, obstructionData, 425 + 32 - 1, 2, 2, 0);
+    generateObject(data, obstructionData, 425 + 32 - 1, 2, 0, 0);
+    //generateObject(data, obstructionData, 425 + 32 + 1, 2, 2, 0);
+    //generateObject(data, obstructionData, 425 + 32 -1, 2, 2, 1, 0);
     //generateObject(data, obstructionData, 53, 1, 1, 0);
     //generateObject(data, obstructionData, 54, 1, 1, 0);
     //generateObject(data, obstructionData, 38, 1, 1, 0);
     //return data;
     
-    //for (var i = 0; i < width * height / 5 ; i++) {
-    //  for (var pos; pos = Math.floor(Math.random() * (options.mapSize * options.mapSize));)
-    //    if (!data.data[pos * 4 + 3])
-    //      break; 
-    //  generateObject(data, obstructionData, pos);
-    //}
+    for (var i = 0; i < width * height / 5 ; i++) {
+      for (var pos; pos = Math.floor(Math.random() * (options.mapSize * options.mapSize));)
+        if (!data.data[pos * 4 + 3])
+          break; 
+      generateObject(data, obstructionData, pos);
+    }
     context.putImageData(data, 0, 0)
     obstructionContext.putImageData(obstructionData, 0, 0)
     document.body.appendChild(canvas)

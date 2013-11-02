@@ -15,13 +15,13 @@ document.body.appendChild(style)
 
 describe('Map', function() {
   xit ('should calculate distance between a tile and a zone', function() {
-    var map = new Map;
+    var map = new Game.Map;
     expect(map.distance(555, 1)).toBe(map.distance(555, 155))
     expect(map.distance(111, 1)).toBe(map.distance(111, 155))
   })
 
   xit ('should propagate properties', function() {    
-    var map = new Map(4);
+    var map = new Game.Map(4);
     map.scale = 2
     var canvas = document.createElement('canvas');
     canvas.width = Math.pow(3, 4)
@@ -64,7 +64,7 @@ describe('Map', function() {
         //canvas.style.width = '810px';
         //canvas.style.height = '810px';
 
-        var world = new Map(4, true);
+        var world = new Game.Map(4, true);
         world.scale = 3
         world.canvas = canvas;
         world.setZone(155, function(tile, number) {
@@ -131,48 +131,48 @@ describe('Map', function() {
 //
 //
         console.profile(2);
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        Time(0, world)
-        //Time(0, world)
-        //Time(0, world)
-        //Time(0, world)
-        //Time(0, world)
-        //Time(0, world)
-        //Time(0, world)
-        //Time(0, world)
-        //Time(0, world)
-        //Time(0, world)
-        //Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        Game.Time(0, world)
+        //Game.Time(0, world)
+        //Game.Time(0, world)
+        //Game.Time(0, world)
+        //Game.Time(0, world)
+        //Game.Time(0, world)
+        //Game.Time(0, world)
+        //Game.Time(0, world)
+        //Game.Time(0, world)
+        //Game.Time(0, world)
+        //Game.Time(0, world)
         console.profileEnd(2);
         world.draw(human);
        document.body.appendChild(world.canvas);
@@ -186,7 +186,7 @@ describe('Map', function() {
         canvas.imageSmoothingEnabled = false
         canvas.mozImageSmoothingEnabled = false
         canvas.webkitImageSmoothingEnabled = false
-        var map = new Map(2);
+        var map = new Game.Map(2);
         map.scale = 20
         map.zone = 111
         map.z = 3;
@@ -206,9 +206,9 @@ describe('Map', function() {
         );
         map(11196, bush)
         var time = 0;
-        time = Time(time, map)
-        time = Time(time, map)
-        time = Time(time, map)
+        time = Game.Time(time, map)
+        time = Game.Time(time, map)
+        time = Game.Time(time, map)
         map.draw(rabbit);
         //window.$tick = 3;
         //console.error('tick 3')
@@ -227,7 +227,7 @@ describe('Map', function() {
         canvas.imageSmoothingEnabled = false
         canvas.mozImageSmoothingEnabled = false
         canvas.webkitImageSmoothingEnabled = false
-        var map = new Map(4);
+        var map = new Game.Map(4);
         map.scale = 10
         map.zone = 1111
         map.z = 4;
@@ -255,20 +255,17 @@ describe('Map', function() {
         );
         map(11118235, bush)
         var time = 0;
-        console.profile(3)
         var interval = parseInt(location.search.split('interval=')[1]);
         if (interval)
             return setInterval(function() {
 
-                time = Time(time, map)
+                time = Game.Time(time, map)
                 map.draw(rabbit);
                 if (!map.canvas.parentNode)
                 document.body.appendChild(map.canvas);
             }, interval)
-        console.profileEnd(3)
-        //time = Time(time, map)
-        debugger
-        time = Time(time, map)
+        //time = Game.Time(time, map)
+        time = Game.Time(time, map)
         map.draw(rabbit);
         //window.$tick = 3;
         //console.error('tick 3')
@@ -281,10 +278,10 @@ describe('Map', function() {
         canvas.width = Math.pow(3, 4)
         canvas.height = Math.pow(3, 4)
         console.profile(2);
-        var world = new Map(4);
+        var world = new Game.Map(4);
         world.setZone(15555555)
 
-        var viewport = new Map(4, 1);
+        var viewport = new Game.Map(4, 1);
         world.viewport = viewport;
         viewport.canvas = canvas;
         viewport.setZone(155555556666, world)
@@ -340,13 +337,13 @@ describe('Map', function() {
         expect(Game.Object.get(world(1555555566), 'resources.food.plants.fruit')).toBe(20)
         expect(Game.Object.get(world(155555556), 'resources.food.plants.fruit')).toBe(20)
 
-        time = Time(time, viewport)
+        time = Game.Time(time, viewport)
         expect(Game.Object.get(rabbit, 'quests.routine.survival.feed')).toBe(1)
         expect(Game.Object.get(rabbit, 'quests.routine.process.cook')).toBe(1)
         expect(Game.Object.get(rabbit, 'quests.routine.consume.eat')).toBe(2)
         expect(Game.Object.get(rabbit, 'quests.routine.acquire.outside')).toBe(3)
         expect(Game.Object.get(rabbit, 1)).toBe(world.south(1555555566661377))
-        time = Time(time, viewport)
+        time = Game.Time(time, viewport)
         expect(Game.Object.get(rabbit, 'quests.routine.survival.feed')).toBe(2)
         expect(Game.Object.get(rabbit, 'quests.routine.process.cook')).toBe(2)
         expect(Game.Object.get(rabbit, 'quests.routine.consume.eat')).toBe(3)
@@ -359,13 +356,13 @@ describe('Map', function() {
         }
 
         setInterval(function() {
-            time = Time(time, viewport)
+            time = Game.Time(time, viewport)
             viewport.draw(Game.paths.walk[Game.Object.get(rabbit, 'id')])
         }, 100)
 
 
         var time = 0;
-        //time = Time(time, viewport)
+        //time = Game.Time(time, viewport)
         console.profileEnd(2);
         //console.log(viewport.objects[0], 123)
         document.body.appendChild(canvas)

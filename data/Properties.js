@@ -302,7 +302,9 @@ Game.merge('properties', {
       }
     },
     inventory: {
-      bag: {}
+      bag: {
+        
+      }
     }
   }
 });

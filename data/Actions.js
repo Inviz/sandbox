@@ -18,36 +18,58 @@ Game.merge('actions', {
   process: {
     output: 'channeling',
 
+    consume: {
+      // input: 'Object',
+
+      condition: function(input, output, action) {
+        var target = Game.Object.References(this, function(object, kind, result) {
+          var resource = Game.Object.Value(object, input);
+          if (resource)
+            return this;
+        })
+        if (target) {
+          console.log('consume', target)
+        }
+        return target;
+      },
+
+      execute: function() {
+
+      },
+
+      complete: function() {
+
+      },
+
+      quickly: {}
+    },
+
     gather: {
-      execute: function(argument, output, quest) {
-        if (argument.result.length > 1) 
+      distance: 1,
+      time: 3,
+
+      execute: function(input, output, action) {
+        if (input.result.length > 1) 
           return 0;
         return (output || 0) + 1;
       },
-      condition: function(argument, output, quest) {
+      condition: function(input, output, action) {
         return output == 3
       },
-      complete: function(argument, output, quest) {
-        var subject = this;
-        var target = argument.result[0];
-        if (!target) {
-          var id = Game.Object.get(this, 'id');
-          var world = Game.maps[id] 
-          target = world(Game.Object.get(this, 1));
-        }
-        Game.Object.each(target, function(object) {
-          var resource = Game.Object.get(object, 'resources.food.plants.fruit');
+      complete: function(input, output, action) {
+        Game.Object.References(target, function(object) {
+          var resource = Game.Object.Value(object, 'resources.food.plants.fruit');
           if (resource) {
             Game.Object.set(object, 'resources.food.plants.fruit', 0)
-            subject.push(
-              Game.valueOf('properties.belonging.inventory.bag', 1, 'object', 
+            this.push(
+              Game.Value('properties.belonging.inventory.bag', 1, 'object', 
                 Game('items.organic.plants.berry', 
-                  Game.valueOf('resources.food.plants.fruit', resource)
+                  Game.Value('resources.food.plants.fruit', resource)
                 )
               )
             )
           }
-        })
+        }, this)
       },
 
       quickly: {
@@ -65,22 +87,29 @@ Game.merge('actions', {
   },
   
   search: {
-    execute: function(argument, output, quest) {
-      return Game.Object.walk(this, function(node, distance, meta, output) {
-        return this[quest.finder](argument, node, distance, meta, output)
-      }, quest.radius, quest.levels, output);
+    // check if location matches search query
+    evaluate: function(input, output, action, node, distance, meta) {
+      output.result[meta || 0] = node;
+      if (Game.Object.Value(node, input || 'resources.food.plants.fruit') != null) {
+        //console.log('fruit at', node[0])
+        return -Infinity;
+      }
+    },
+    // launch search, possibly on miltiple zoom levels
+    execute: function(input, output, action) {
+      return Game.Object.Path(this, function(node, distance, meta, output) {
+        return action.evaluate.call(this, input, output, action, node, distance, meta)
+      }, action.radius, action.levels, output);
     },
 
     output: 'look',
-
-    levels: 4,
 
     property: {
       finder: 'finder',
 
       quickly: {
         radius: radius,
-        levels: 6
+        levels: 4
       },
       nearby: {
       },
@@ -101,35 +130,43 @@ Game.merge('actions', {
 
     },
     there: {
-      input: 'point',
-
-      execute: function(input, output, quest) {
-        var result = input.result;
-        var last = result[result.length - 1]
-        var finish = last[0];
-        var path = Game.Object.walk(this, function(node, distance, meta, output) {
-          return this[quest.finder](finish, node, distance, meta, output)
-        }, quest.radius, null, output)
-        path.finish = finish;
-        return path;
+      input: 'Coordinates',
+      method: 'chebyshev',
+      weight: 1000000,
+      // evaluates cell weight and passability to find path
+      evaluate: function(input, output, action, node, distance, meta) {
+        var impassable = Game.Object.References(node, function(object) {
+          if (Game.Object.Value(object, 'table') != null)
+            return true;
+        })
+        if (impassable)
+          return Infinity
+        var distance = Game.Coordinates.Distance(node[0], input, action.method);
+        if (!distance)
+          return -Infinity
+        return distance * action.weight;
       },
-      condition: function(input, output, quest) {
-        var result = input.result;
-        var finish = result[result.length - 1][0];
-        return output && output.result.length < 1 && (!output.finish || output.finish == finish)
+      // launch pathfinding
+      execute: function(input, output, action) {
+        return Game.Object.Path(this, function(node, distance, meta, output) {
+          return action.evaluate.call(this, input, output, action, node, distance, meta)
+        }, action.radius, null, output);
       },
+      // check if the target is reached
+      condition: function(input, output, action) {
+        return output && !output.result.length
+      },
+      // fire completion callback
       complete: function() {
 
       },
+      // cleanup garbage
       cleanup: function() {
 
       },
 
-      finder: 'walker',
-      radius: 4,
-
       quickly: {
-
+        radius: 4
       }
     }
   },
@@ -193,7 +230,7 @@ Game.merge('actions', {
       advice: {}
     },
     barter: {
-      request: {},
+      reaction: {},
       demand: {},
       offer: {},
       counteroffer: {}

@@ -2,10 +2,19 @@
   <base href=".." />
 </head>
 <body>
-<script src="source/Data.js"></script>
+<script src="source/Type.js"></script>
+<script src="source/Property.js"></script>
 <script src="source/Map.js"></script>
+<script src="source/Path.js"></script>
+<script src="source/Quest.js"></script>
+<script src="source/Action.js"></script>
 <script src="source/Object.js"></script>
+<script src="source/Property.js"></script>
+<script src="source/Value.js"></script>
+<script src="source/Coordinates.js"></script>
+<script src="source/Location.js"></script>
 <script src="source/Time.js"></script>
+<script src="source/Reference.js"></script>
 <script src="data/Properties.js"></script>
 <script src="data/Quests.js"></script>
 <script src="data/Resources.js"></script>
@@ -78,7 +87,7 @@
   canvas.mozImageSmoothingEnabled = false
   canvas.webkitImageSmoothingEnabled = false
   if (location.search.indexOf('big') > -1) {
-    var map = new Map(4, true);
+    var map = new Game.Map(4, true);
     canvas.width = 81 * 3
     canvas.height =81 * 3
     map.scale = 4
@@ -88,7 +97,7 @@
   } else {
     canvas.width = 81
     canvas.height =81
-    var map = new Map(4)
+    var map = new Game.Map(4)
     map.scale = 8;
     map.zone = 1111
     map.z = 4;
@@ -123,11 +132,11 @@
 
   for (var i = 0; i < bushes; i++) {
     map(random(), Game('creatures.plants.bushes.strawberry',
-        Game.valueOf('resources.food.plants.fruit', 10)
+        Game.Value('resources.food.plants.fruit', 10)
     ))
   }
 
-  var rabbits = parseInt(location.search.split('rabbits=')[1]) || 2;
+  var rabbits = parseInt(location.search.split('rabbits=')[1]) || 1;
 
   for (var i = 0; i < rabbits; i++) {
     var rabbit = Game('creatures.animals.vermin.rabbit');
@@ -138,7 +147,7 @@
   var interval = parseInt(location.search.split('interval=')[1]);
   var max = parseInt(location.search.split('max=')[1]);
   var tick = function() {
-    window.$time = time = Time(time, map)
+    window.$time = time = Game.Time(time, map)
     map.draw(rabbit);    
     if (!map.canvas.parentNode)
     document.body.appendChild(map.canvas);
@@ -152,8 +161,7 @@
       }, interval)
   else {
     console.profileEnd(3)
-    //time = Time(time, map)
-    time = Time(time, map)
+    time = Game.Time(time, map)
     map.draw(rabbit);
     document.body.appendChild(map.canvas);
   }

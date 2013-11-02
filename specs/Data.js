@@ -25,8 +25,8 @@ describe('Data', function() {
     },
     food: {}
   }
-  var data = new Game.Data(payload)
-  var outer = new Game.Data({
+  var data = new Game.Type(payload)
+  var outer = new Game.Type({
     data: payload
   })
   describe('with prefix', function() {
@@ -90,39 +90,39 @@ describe('Data', function() {
     describe('when used as a function', function() {
       describe('and given key', function() {
         it ('should fetch category number', function() {
-          expect(outer.valueOf('data.weapons')).toBe(10)
-          expect(outer.valueOf('data.weapons.ranged')).toBe(100)
-          expect(outer.valueOf('data.weapons.ranged.crossbow')).toBe(1000)
-          expect(outer.valueOf('data.weapons.ranged.bow')).toBe(1001)
-          expect(outer.valueOf('data.weapons.throwing')).toBe(101)
-          expect(outer.valueOf('data.weapons.throwing.knife')).toBe(1010)
-          expect(outer.valueOf('data.weapons.melee')).toBe(102)
-          expect(outer.valueOf('data.weapons.melee.sword')).toBe(1020)
-          expect(outer.valueOf('data.weapons.melee.spear')).toBe(1021)
-          expect(outer.valueOf('data.clothing')).toBe(11)
-          expect(outer.valueOf('data.clothing.bodywear')).toBe(110)
-          expect(outer.valueOf('data.clothing.bodywear.breastplate')).toBe(1100)
-          expect(outer.valueOf('data.clothing.headwear')).toBe(111)
-          expect(outer.valueOf('data.clothing.headwear.cap')).toBe(1110)
-          expect(outer.valueOf('data.food')).toBe(12)
-          expect(outer.valueOf('data.fool')).toBe(0)
-          expect(outer.valueOf('dato')).toBe(0)
-          expect(outer.data.valueOf('weapons')).toBe(10)
-          expect(outer.data.valueOf('weapons.ranged')).toBe(100)
-          expect(outer.data.valueOf('weapons.ranged.crossbow')).toBe(1000)
-          expect(outer.data.valueOf('weapons.ranged.bow')).toBe(1001)
-          expect(outer.data.valueOf('weapons.throwing')).toBe(101)
-          expect(outer.data.valueOf('weapons.throwing.knife')).toBe(1010)
-          expect(outer.data.valueOf('weapons.melee')).toBe(102)
-          expect(outer.data.valueOf('weapons.melee.sword')).toBe(1020)
-          expect(outer.data.valueOf('weapons.melee.spear')).toBe(1021)
-          expect(outer.data.valueOf('clothing')).toBe(11)
-          expect(outer.data.valueOf('clothing.bodywear')).toBe(110)
-          expect(outer.data.valueOf('clothing.bodywear.breastplate')).toBe(1100)
-          expect(outer.data.valueOf('clothing.headwear')).toBe(111)
-          expect(outer.data.valueOf('clothing.headwear.cap')).toBe(1110)
-          expect(outer.data.valueOf('food')).toBe(12)
-          expect(outer.data.valueOf('fool')).toBe(0);
+          expect(outer.indexOf('data.weapons')).toBe(10)
+          expect(outer.indexOf('data.weapons.ranged')).toBe(100)
+          expect(outer.indexOf('data.weapons.ranged.crossbow')).toBe(1000)
+          expect(outer.indexOf('data.weapons.ranged.bow')).toBe(1001)
+          expect(outer.indexOf('data.weapons.throwing')).toBe(101)
+          expect(outer.indexOf('data.weapons.throwing.knife')).toBe(1010)
+          expect(outer.indexOf('data.weapons.melee')).toBe(102)
+          expect(outer.indexOf('data.weapons.melee.sword')).toBe(1020)
+          expect(outer.indexOf('data.weapons.melee.spear')).toBe(1021)
+          expect(outer.indexOf('data.clothing')).toBe(11)
+          expect(outer.indexOf('data.clothing.bodywear')).toBe(110)
+          expect(outer.indexOf('data.clothing.bodywear.breastplate')).toBe(1100)
+          expect(outer.indexOf('data.clothing.headwear')).toBe(111)
+          expect(outer.indexOf('data.clothing.headwear.cap')).toBe(1110)
+          expect(outer.indexOf('data.food')).toBe(12)
+          expect(outer.indexOf('data.fool')).toBe(0)
+          expect(outer.indexOf('dato')).toBe(0)
+          expect(outer.data.indexOf('weapons')).toBe(10)
+          expect(outer.data.indexOf('weapons.ranged')).toBe(100)
+          expect(outer.data.indexOf('weapons.ranged.crossbow')).toBe(1000)
+          expect(outer.data.indexOf('weapons.ranged.bow')).toBe(1001)
+          expect(outer.data.indexOf('weapons.throwing')).toBe(101)
+          expect(outer.data.indexOf('weapons.throwing.knife')).toBe(1010)
+          expect(outer.data.indexOf('weapons.melee')).toBe(102)
+          expect(outer.data.indexOf('weapons.melee.sword')).toBe(1020)
+          expect(outer.data.indexOf('weapons.melee.spear')).toBe(1021)
+          expect(outer.data.indexOf('clothing')).toBe(11)
+          expect(outer.data.indexOf('clothing.bodywear')).toBe(110)
+          expect(outer.data.indexOf('clothing.bodywear.breastplate')).toBe(1100)
+          expect(outer.data.indexOf('clothing.headwear')).toBe(111)
+          expect(outer.data.indexOf('clothing.headwear.cap')).toBe(1110)
+          expect(outer.data.indexOf('food')).toBe(12)
+          expect(outer.data.indexOf('fool')).toBe(0);
         })
 
         it ('should fetch category number by a partial key', function() {
@@ -131,22 +131,22 @@ describe('Data', function() {
 
         describe('and given value', function() {
           it ('should make a number that has both key and value', function() {
-            expect(outer.data.valueOf('weapons', 123)).toBe(1000123);
-            expect(outer.data.valueOf('weapons', -123)).toBe(-1000123);
-            expect(outer.data.valueOf('weapons', 12)).toBe(1000012);
-            expect(outer.data.valueOf('weapons', 0)).toBe(1000000);
-            expect(outer.data.valueOf('clothing.headwear.cap', 123)).toBe(1110123);
-            expect(outer.data.valueOf('clothing.headwear.cap', -123)).toBe(-1110123);
-            expect(outer.data.valueOf('clothing.headwear.cap', 12)).toBe(1110012);
-            expect(outer.data.valueOf('clothing.headwear.cap', 0)).toBe(1110000);
-            expect(outer.valueOf('data.weapons', 123)).toBe(1000123);
-            expect(outer.valueOf('data.weapons', -123)).toBe(-1000123);
-            expect(outer.valueOf('data.weapons', 12)).toBe(1000012);
-            expect(outer.valueOf('data.weapons', 0)).toBe(1000000);
-            expect(outer.valueOf('data.clothing.headwear.cap', 123)).toBe(1110123);
-            expect(outer.valueOf('data.clothing.headwear.cap', -123)).toBe(-1110123);
-            expect(outer.valueOf('data.clothing.headwear.cap', 12)).toBe(1110012);
-            expect(outer.valueOf('data.clothing.headwear.cap', 0)).toBe(1110000);
+            expect(outer.data.indexOf('weapons', 123)).toBe(1000123);
+            expect(outer.data.indexOf('weapons', -123)).toBe(-1000123);
+            expect(outer.data.indexOf('weapons', 12)).toBe(1000012);
+            expect(outer.data.indexOf('weapons', 0)).toBe(1000000);
+            expect(outer.data.indexOf('clothing.headwear.cap', 123)).toBe(1110123);
+            expect(outer.data.indexOf('clothing.headwear.cap', -123)).toBe(-1110123);
+            expect(outer.data.indexOf('clothing.headwear.cap', 12)).toBe(1110012);
+            expect(outer.data.indexOf('clothing.headwear.cap', 0)).toBe(1110000);
+            expect(outer.indexOf('data.weapons', 123)).toBe(1000123);
+            expect(outer.indexOf('data.weapons', -123)).toBe(-1000123);
+            expect(outer.indexOf('data.weapons', 12)).toBe(1000012);
+            expect(outer.indexOf('data.weapons', 0)).toBe(1000000);
+            expect(outer.indexOf('data.clothing.headwear.cap', 123)).toBe(1110123);
+            expect(outer.indexOf('data.clothing.headwear.cap', -123)).toBe(-1110123);
+            expect(outer.indexOf('data.clothing.headwear.cap', 12)).toBe(1110012);
+            expect(outer.indexOf('data.clothing.headwear.cap', 0)).toBe(1110000);
           })
 
           describe('and given reference', function() {
@@ -155,14 +155,14 @@ describe('Data', function() {
                 var object = {
                   id: 12345678
                 }
-                expect(outer.data.valueOf('weapons', 123, 'object', object)).toBe(1000123212345678)
-                expect(outer.data.valueOf('weapons', -123, 'object', object)).toBe(-1000123212345678)
-                expect(outer.data.valueOf('weapons', 123, 2, object)).toBe(1000123212345678)
-                expect(outer.data.valueOf('weapons', -123, 2, object)).toBe(-1000123212345678)
-                expect(outer.valueOf('data.weapons', 123, 'object', object)).toBe(1000123212345678)
-                expect(outer.valueOf('data.weapons', -123, 'object', object)).toBe(-1000123212345678)
-                expect(outer.valueOf('data.weapons', 123, 2, object)).toBe(1000123212345678)
-                expect(outer.valueOf('data.weapons', -123, 2, object)).toBe(-1000123212345678)
+                expect(outer.data.indexOf('weapons', 123, 'object', object)).toBe(1000123212345678)
+                expect(outer.data.indexOf('weapons', -123, 'object', object)).toBe(-1000123212345678)
+                expect(outer.data.indexOf('weapons', 123, 2, object)).toBe(1000123212345678)
+                expect(outer.data.indexOf('weapons', -123, 2, object)).toBe(-1000123212345678)
+                expect(outer.indexOf('data.weapons', 123, 'object', object)).toBe(1000123212345678)
+                expect(outer.indexOf('data.weapons', -123, 'object', object)).toBe(-1000123212345678)
+                expect(outer.indexOf('data.weapons', 123, 2, object)).toBe(1000123212345678)
+                expect(outer.indexOf('data.weapons', -123, 2, object)).toBe(-1000123212345678)
               })
             })
           })
@@ -193,35 +193,35 @@ describe('Data', function() {
     describe('when used as a function', function() {
       describe('and given key', function() {
         it ('should fetch category number', function() {
-          expect(data.valueOf('weapons')).toBe(1)
-          expect(data.valueOf('weapons.ranged')).toBe(10)
-          expect(data.valueOf('weapons.ranged.crossbow')).toBe(100)
-          expect(data.valueOf('weapons.ranged.bow')).toBe(101)
-          expect(data.valueOf('weapons.throwing')).toBe(11)
-          expect(data.valueOf('weapons.throwing.knife')).toBe(110)
-          expect(data.valueOf('weapons.melee')).toBe(12)
-          expect(data.valueOf('weapons.melee.sword')).toBe(120)
-          expect(data.valueOf('weapons.melee.spear')).toBe(121)
-          expect(data.valueOf('clothing')).toBe(2)
-          expect(data.valueOf('clothing.bodywear')).toBe(20)
-          expect(data.valueOf('clothing.bodywear.breastplate')).toBe(200)
-          expect(data.valueOf('clothing.headwear')).toBe(21)
-          expect(data.valueOf('clothing.headwear.cap')).toBe(210)
-          expect(data.valueOf('food')).toBe(3)
-          expect(data.valueOf('fool')).toBe(0)
+          expect(data.indexOf('weapons')).toBe(1)
+          expect(data.indexOf('weapons.ranged')).toBe(10)
+          expect(data.indexOf('weapons.ranged.crossbow')).toBe(100)
+          expect(data.indexOf('weapons.ranged.bow')).toBe(101)
+          expect(data.indexOf('weapons.throwing')).toBe(11)
+          expect(data.indexOf('weapons.throwing.knife')).toBe(110)
+          expect(data.indexOf('weapons.melee')).toBe(12)
+          expect(data.indexOf('weapons.melee.sword')).toBe(120)
+          expect(data.indexOf('weapons.melee.spear')).toBe(121)
+          expect(data.indexOf('clothing')).toBe(2)
+          expect(data.indexOf('clothing.bodywear')).toBe(20)
+          expect(data.indexOf('clothing.bodywear.breastplate')).toBe(200)
+          expect(data.indexOf('clothing.headwear')).toBe(21)
+          expect(data.indexOf('clothing.headwear.cap')).toBe(210)
+          expect(data.indexOf('food')).toBe(3)
+          expect(data.indexOf('fool')).toBe(0)
         })
 
         describe('and given value', function() {
           it ('should make a number that has both key and value', function() {
-            expect(data.valueOf('weapons', 123)).toBe(100123);
-            expect(data.valueOf('weapons', -123)).toBe(-100123);
-            expect(data.valueOf('weapons', 12)).toBe(100012);
-            expect(data.valueOf('weapons', 0)).toBe(100000);
-            expect(data.valueOf('clothing.headwear.cap', 123)).toBe(210123);
-            expect(data.valueOf('clothing.headwear.cap', -123)).toBe(-210123);
-            expect(data.valueOf('clothing.headwear.cap', 12)).toBe(210012);
-            expect(data.valueOf('clothing.headwear.cap', 0)).toBe(210000);
-            expect(data.valueOf('food', 3)).toBe(300003)
+            expect(data.indexOf('weapons', 123)).toBe(100123);
+            expect(data.indexOf('weapons', -123)).toBe(-100123);
+            expect(data.indexOf('weapons', 12)).toBe(100012);
+            expect(data.indexOf('weapons', 0)).toBe(100000);
+            expect(data.indexOf('clothing.headwear.cap', 123)).toBe(210123);
+            expect(data.indexOf('clothing.headwear.cap', -123)).toBe(-210123);
+            expect(data.indexOf('clothing.headwear.cap', 12)).toBe(210012);
+            expect(data.indexOf('clothing.headwear.cap', 0)).toBe(210000);
+            expect(data.indexOf('food', 3)).toBe(300003)
           })
 
           describe('and given reference', function() {
@@ -230,10 +230,10 @@ describe('Data', function() {
                 var object = {
                   id: 12345678
                 }
-                expect(data.valueOf('weapons', 123, 'object', object)).toBe(100123212345678)
-                expect(data.valueOf('weapons', -123, 'object', object)).toBe(-100123212345678)
-                expect(data.valueOf('weapons', 123, 2, object)).toBe(100123212345678)
-                expect(data.valueOf('weapons', -123, 2, object)).toBe(-100123212345678)
+                expect(data.indexOf('weapons', 123, 'object', object)).toBe(100123212345678)
+                expect(data.indexOf('weapons', -123, 'object', object)).toBe(-100123212345678)
+                expect(data.indexOf('weapons', 123, 2, object)).toBe(100123212345678)
+                expect(data.indexOf('weapons', -123, 2, object)).toBe(-100123212345678)
               })
             })
           })

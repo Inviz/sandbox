@@ -4,47 +4,39 @@
 //   Viewport maps are not aligned to grid (allow free scrolling)
 // * Maps of different scale can be nested via viewport map 
 //   Each of 9 maps in viewport represent a single tile in another map
-Map = function(width, scrolling) {
-    if (width == null)
-      return;
-  if (this instanceof Map) {
-    var map = function(number, object) {
-      var tile = map.tileAt(number);
-      if (object !== undefined)
-        map.put(tile, object)
-      return tile;
-    }
-    map.width = width;
-    map.max = Math.pow(10, width)
-    if (scrolling)
-      var array = {};
-    else
-      var array = Array(map.max);
-    map.array = array;
-    map.objects = [];
-    if (scrolling)
-      map.scrolling = true
-
-    if (!Game.maps)
-      Game.maps = {};
-    map.maps = Game.maps;
-    if (!Game.output)
-      Game.output = {};
-    if (!Game.vectors)
-      Game.vectors = {};
-
-    if (!Map.indexOfs)
-      Map.indexOfs = {};
-    map.indexOfs = (Map.indexOfs[width] || (Map.indexOfs[width] = {}));
-
-    for (var property in this)
-      map[property] = this[property];
-    return map;
+Game.Map = function(width, scrolling) {
+  if (!(this instanceof Game.Map))
+    return
+  if (width == null)
+    return;
+  var map = function(number, object) {
+    var tile = map.tileAt(number);
+    if (object !== undefined)
+      map.put(tile, object)
+    return tile;
   }
+  map.width = width;
+  map.max = Math.pow(10, width)
+  if (scrolling)
+    var array = {};
+  else
+    var array = Array(map.max);
+  map.array = array;
+  map.objects = [];
+  if (scrolling)
+    map.scrolling = true
+
+  if (!Game.Map.indexOfs)
+    Game.Map.indexOfs = {};
+  map.indexOfs = (Game.Map.indexOfs[width] || (Game.Map.indexOfs[width] = {}));
+
+  for (var property in this)
+    map[property] = this[property];
+  return map;
 };
 
 // return tile at location
-Map.prototype.tileAt = function(number, lazy) {
+Game.Map.prototype.tileAt = function(number, lazy) {
   var array = this.array;
   if (this.scrolling) {
     var width = this.width;
@@ -84,10 +76,8 @@ Map.prototype.tileAt = function(number, lazy) {
       tile = this.viewport(local)
   } else {
     if (!lazy && !tile) {
-      if (!this.normalize(parseInt(number), digits))
-        debugger
       tile = array[coordinates || number] = [
-        this.normalize(parseInt(number), digits)
+        Game.Map.Coordinates(this, parseInt(number), digits)
       ]
     }
   }
@@ -95,18 +85,25 @@ Map.prototype.tileAt = function(number, lazy) {
 }
 
 // move object from one tile to another
-Map.prototype.move = function(from, to, object) {
+Game.Map.prototype.move = function(from, to, object) {
   if (typeof to == 'string')
     to = this[to](from);
+  else
+    // remove first step from path 
+    to = Game.Path.pop(to);
+  from = Game.Map.Location(this, from);
   this.delete(from, object, true);
   this.put(to, object, true);
+  var vector = Game.Coordinates.Vector(from[0], to[0]);
+  Game.Object.Vector(object, vector)
+  return to;
 }
 
 // remove object from a tile
-Map.prototype.delete = function(tile, object, lazy) {
+Game.Map.prototype.delete = function(tile, object, lazy) {
   if (typeof tile == 'number')
     tile = this(tile)
-  var occupation = Game.valueOf('occupy', 0, 'object', object);
+  var occupation = Game.Value('occupy', 0, 'object', object);
   tile.splice(tile.indexOf(occupation), 1);
   object.splice(object.indexOf(tile[0]), 1);
   if (!lazy)
@@ -128,7 +125,7 @@ Map.prototype.delete = function(tile, object, lazy) {
         val = - val;
       var start = tile[0];
       var world = this.world || this;
-      for (var parent = start; parent; parent = this.up(parent)) {
+      for (var parent = start; parent; parent = Game.Coordinates.up(parent)) {
         if (world.zone == parent)
           break;
         var tile = world(parent);
@@ -140,15 +137,14 @@ Map.prototype.delete = function(tile, object, lazy) {
 };
 
 // place object in the tile
-Map.prototype.put = function(tile, object, lazy) {
+Game.Map.prototype.put = function(tile, object, lazy) {
   if (typeof tile == 'number')
     tile = this(tile)
-  tile.push(Game.valueOf('occupy', 0, 'object', object));
+  tile.push(Game.Value('occupy', 0, 'object', object));
   object.push(tile[0]);
   if (!lazy)
     this.objects.push(object);
-  if (this.maps)
-    this.maps[Game.Object.get(object, 'id')] = this;
+  Game.Object.Map(object, this);
   if (this.callback)
     this.callback.call(this, tile, object, number, position);
   var resources = Game.resources._index * 1000;
@@ -168,7 +164,7 @@ Map.prototype.put = function(tile, object, lazy) {
         val = - val;
       var start = tile[0];
       var world = this.world || this;
-      for (var parent = start; parent; parent = this.up(parent)) {
+      for (var parent = start; parent; parent = Game.Coordinates.up(parent)) {
         if (world.zone == parent)
           break;
         var tile = world(parent);
@@ -179,50 +175,19 @@ Map.prototype.put = function(tile, object, lazy) {
   }
 }
 
-// convert to absolute coordinate (zone & loc prefix)
-Map.prototype.normalize = function(number, digits) {
-  if (digits == null)
-    var digits = Math.floor(Math.log(number) / Math.LN10) + 1;
-  var modifier = Math.pow(10, Math.min(this.width, digits));
-  var absolute = modifier * Math.pow(10, this.z || 0)
-  if (number < this.max) {
-    var zone = this.zone || 0
-    if (zone)
-      number += modifier * zone;
-    else
-      number += modifier * Math.pow(10, (this.z || 0))
-  } else if (number < modifier * 10) {
-    number -= modifier
-
-    var zone = this.zone || 0
-    if (zone)
-      number += modifier * zone;
-    number += modifier * Math.pow(10, (this.z || 0))
-  }
-  return number;
-}
-
 // order of neighbhours to be visited
-Map.prototype.directions = ['north', 'east', 'south', 'west', 'northwest', 'northeast', 'southeast', 'southwest']
+Game.Map.prototype.directions = ['north', 'east', 'south', 'west', 'northwest', 'northeast', 'southeast', 'southwest']
 
 // pattern to walk around the node
-Map.prototype.shifts = ['north', 'east', 'south', 'south', 'west', 'west', 'north', 'north'];
+Game.Map.prototype.shifts = ['north', 'east', 'south', 'south', 'west', 'west', 'north', 'north'];
 
 var z = 0;
 
 // walk around the map
 // can break & resume its computations
-Map.prototype.walk = function(start, callback, max, meta, vector, output) {
+Game.Map.prototype.walk = function(start, callback, max, meta, vector, output) {
   if (!output)
-    output = {
-      result: [],
-      queues: [],
-      locations: [],
-      distances: [],
-      qualities: [],
-      backtrace: [],
-      processed: []
-    }
+    output = new Game.Path(this)
   var result = output.result;
   var queues = output.queues;
   var locations = output.locations;
@@ -259,10 +224,8 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
   // when shifting a shape, replace perimeter with another
   if (vector && levels) {
     var shifted = [];
-    var weighted = [];
     var queued = queue.slice()
     queues[index] = shifted
-    queues[index + 1] = weighted;
   } else {
     var queued = queue
   }
@@ -282,7 +245,7 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
     }
 
     if (vector && levels) {
-      var boundary = !this(this.opposite(node[0], vector))
+      var boundary = !this(Game.Coordinates.opposite(node[0], vector))
       //if (boundary) console.error('sjfnskjgnkjn', node[0])
     }
 
@@ -304,7 +267,7 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
         }
       }
 
-      var next    = this(this[direction](node[0]));
+      var next    = this(Game.Coordinates[direction](node[0]));
       if (!next) continue;
 
       if ((queued.indexOf(next) == -1 && next != start) || vector) {
@@ -344,17 +307,15 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
           }
 
           // add node to queue, preserve quality sort order
-          var q = shifted || queue;
           if (!levels) {
-            var w = weighted || weights;
             var weight = quality + distance;
-            for (var k = q.length, n; n = q[k - 1]; k--)
-              if (w[k - 1] > weight)
+            for (var k = queue.length, n; n = queue[k - 1]; k--)
+              if (weights[k - 1] > weight)
                 break;
-            w.splice(k, 0, weight)
-            q.splice(k, 0, next)
+            weights.splice(k, 0, weight)
+            queue.splice(k, 0, next)
           } else {
-            q.unshift(next)
+            (shifted || queue).unshift(next)
           }
         }
       }
@@ -403,7 +364,7 @@ Map.prototype.walk = function(start, callback, max, meta, vector, output) {
 };
 
 // calculate tile position in 1d base10 array 
-Map.prototype.indexOf = function(number) {
+Game.Map.prototype.indexOf = function(number) {
   var right = number % this.max;
   var cache = this.indexOfs[right];
   if (cache != null)
@@ -435,205 +396,8 @@ Map.prototype.indexOf = function(number) {
   return result;
 }
 
-// calculate distance between two coordinates
-Map.prototype.distance = function(a, b, type) {
-  // swap coordinates
-  if (b > a) {
-    var c = b;
-    b = a;
-    a = c;
-  }
-
-  // normalize coordinates (pad with 5's at the end)
-  var max = Math.pow(10, Math.floor((Math.log(a) / Math.LN10) + 1))
-  for (;b < max;) {
-    c = b * 10 + 5;
-    if (c < max) {
-      b = c;
-    } else {
-      break;
-    }
-  }
-
-
-  var x1 = 0, x2 = 0, y1 = 0, y2 = 0;
-  for (var zoom = 0;; zoom++) {
-    var d1 = a % 10;
-    var d2 = b % 10;
-    var modifier = Math.pow(3, zoom);
-
-    x1 += modifier * ((d1 - 1) % 3);
-    y1 += modifier * Math.floor((d1 - 1) / 3)
-    x2 += modifier * ((d2 - 1) % 3);
-    y2 += modifier * Math.floor((d2 - 1) / 3)
-
-    if (d1 == a)
-      break;
-    a = (a - d1) / 10;
-    b = (b - d2) / 10
-  }
-  switch (type) {
-    case 'euclidean':
-      return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-    case 'manhatten':
-      return Math.abs(x2 - x1) + Math.abs(y2 - y1);
-    case 'chebyshev': default:
-      return Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1))
-  }
-}
-
-Map.prototype.up = function(number) {
-  return Math.floor(number / 10);
-};
-
-Map.prototype.opposite = function(number, vector) {
-  return this[this.opposites[vector]](number);
-}
-
-Map.prototype.opposites = {
-  'northeast': 'southwest',
-  'north': 'south',
-  'northwest': 'southeast',
-  'west': 'east',
-  'southwest': 'northeast',
-  'south': 'north',
-  'southeast': 'northwest',
-  'east': 'west'
-}
-
-
-Map.prototype.west = function(number) {
-  for (var remainder = number, zoom = 0;; zoom++) {
-    var digit = remainder % 10;
-    var modifier = Math.pow(10, zoom);
-    var row = (digit - 1) % 3;
-
-    if (row > 0) {
-      number -= modifier * 1
-      break
-    } else {
-      number += modifier * 2
-    }
-
-    if (digit == remainder)
-      break;
-    remainder = (remainder - digit) / 10;
-  } 
-  return number;
-}
-Map[4] = Map.prototype.west;
-
-Map.prototype.east = function(number) {
-  for (var remainder = number, zoom = 0;; zoom++) {
-    var digit = remainder % 10;
-    var modifier = zoom ? modifier * 10 : 1
-
-    var row = (digit - 1) % 3;
-    if (row < 2) {
-      number += modifier * 1
-      break
-    } else {
-      number -= modifier * 2
-    }
-
-    if (digit == remainder)
-      break;
-    remainder = (remainder - digit) / 10;
-  } 
-  return number;
-}
-Map[6] = Map.prototype.east;
-
-
-
-Map.prototype.north = function(number) {
-  for (var remainder = number, zoom = 0;; zoom++) {
-    var digit = remainder % 10;
-    var modifier = Math.pow(10, zoom);
-
-    var row = Math.floor((digit - 1) / 3);
-    if (row > 0) {
-      number -= modifier * 3
-      break
-    } else {
-      number += modifier * 6
-    }
-
-    if (digit == remainder)
-      break;
-    remainder = (remainder - digit) / 10;
-  } 
-  return number;
-}
-Map[2] = Map.prototype.north;
-
-
-Map.prototype.northwest = function(number) {
-  return this.north(this.west(number))
-}
-Map[1] = Map.prototype.northwest
-
-Map.prototype.northeast = function(number) {
-  return this.north(this.east(number))
-}
-Map[3] = Map.prototype.northeast
-
-Map.prototype.southwest = function(number) {
-  return this.south(this.west(number))
-}
-Map[7] = Map.prototype.southwest
-
-Map.prototype.southeast = function(number) {
-  return this.south(this.east(number))
-}
-Map[9] = Map.prototype.southeast
-
-
-Map.prototype.south = function(number) {
-  for (var remainder = number, zoom = 0;; zoom++) {
-    var digit = remainder % 10;
-    var modifier = Math.pow(10, zoom);
-
-    var row = Math.floor((digit - 1) / 3);
-    if (row < 2) {
-      number += modifier * 3
-      break
-    } else {
-      number -= modifier * 6
-    }
-
-    if (digit == remainder)
-      break;
-    remainder = (remainder - digit) / 10;
-  } 
-  return number;
-}
-Map[8] = Map.prototype.south;
-
-Map.prototype.vector = function(from, to) {
-  var north = this.north(from)
-  var south = this.south(from)
-  if (north == to) {
-    return 'north'
-  } else if (this.east(from) == to) {
-    return 'east'
-  } else if (south == to) {
-    return 'south'
-  } else if (this.west(from) == to) {
-    return 'west'
-  } else if (this.east(north) == to) {
-    return 'northeast'
-  } else if (this.east(south) == to) {
-    return 'southeast'
-  } else if (this.west(north) == to) {
-    return 'northwest'
-  } else if (this.west(south) == to) {
-    return 'southwest'
-  }
-}
-
 // set zone in the central square of 9 sq. viewport world
-Map.prototype.setZone = function(number, callback) {
+Game.Map.prototype.setZone = function(number, callback) {
   this.z = Math.floor((Math.log(number) / Math.LN10) + 1);
   this.world = callback;
   if (this.scrolling) {
@@ -669,10 +433,9 @@ Map.prototype.setZone = function(number, callback) {
       this.array = result;
     } else {
       this.each(function(position, tile) {
-        tile = this.array[position] = new Map(this.width);
+        tile = this.array[position] = new Game.Map(this.width);
         tile.viewport = this;
         tile.objects = map.objects;
-        tile.maps = Game.maps;
         tile.setZone(position, callback)
       }, this, true)
     }
@@ -680,7 +443,7 @@ Map.prototype.setZone = function(number, callback) {
     this.zone = number;
     this.each(function(position, tile) {
       if (tile)
-        tile[0] = this.normalize(position);
+        tile[0] = Game.Map.Coordinates(this, position);
       /*if (callback)
         callback.call(this, position, tile)
         */
@@ -689,10 +452,10 @@ Map.prototype.setZone = function(number, callback) {
 }
 
 // iterate tiles in 2d order (scan lines)
-Map.prototype.each = function(callback, bind, lazy) {
+Game.Map.prototype.each = function(callback, bind, lazy) {
   if (this.scrolling) {
     var prefix = 0;
-    var start = this.north(this.west(this.zoned));
+    var start = Game.Coordinates.north(Game.Coordinates.west(this.zoned));
     var width = 1
   } else {
     var prefix = this.zone * Math.pow(10, this.width);
@@ -711,24 +474,24 @@ Map.prototype.each = function(callback, bind, lazy) {
         this.array[now], 
         now,
         i * width + j)
-      now = this.east(now) 
+      now = Game.Coordinates.east(now) 
     }
-    now = this.south(prev)
+    now = Game.Coordinates.south(prev)
   }
 };
 
 // visualize state of the map
-Map.prototype.draw = function(object) {
+Game.Map.prototype.draw = function(object) {
   if (object) {
-    var id = Game.Object.get(object, 'id');
-    var world = Game.maps[id]
-    var navigate = Game.output.walk && Game.output.walk[id]
-    var locate = Game.output.look && Game.output.look[id];
-    var queue = locate.queues;
-    var goals = locate.result;
-    var path = navigate.result;
-    var q = [];
-    var g = []
+    var id       = Game.Object.ID(object);
+    var world    = Game.Object.Map(id)
+    var navigate = Game.Object.Output(id, 'walk')
+    var locate   = Game.Object.Output(id, 'look')
+    var queue    = locate.queues;
+    var goals    = locate.result;
+    var path     = navigate.result;
+    var q        = [];
+    var g        = []
     var modifier = 0;
     for (var k = 0;; k++) {
       var current = queue[k * 2];
@@ -808,8 +571,8 @@ Map.prototype.draw = function(object) {
         var pos = i * 4;
       }
 
-      Game.Object.each(tile, function(object, type) {
-        Game.Object.identify(object, function(definition, type) {
+      Game.Object.References(tile, function(object, type) {
+        Game.Object.Types(object, function(definition, type) {
           switch (definition._reference) {
             case 'table':
               data[pos] = 200;
@@ -907,31 +670,36 @@ Map.prototype.draw = function(object) {
   }
 }
 
-// pathfinding callback that evaluates 
-// distance and passability of a tile
-Map.prototype.walker = function(finish, node, distance, meta, output) {
-  var passable = true;
-  Game.Object.each(node, function(object, type, value) {
-    if (Game.Object.get(object, 'table') != null) {
-      passable = false;
-    }
-  })
 
-  if (!passable)
-    return Infinity
-  var distance = this.distance(node[0], finish, 'chebyshev');
-  if (!distance) {
-    return -Infinity
-  }
-  return distance * 1000000;
-};
+Game.Map.Location = function(map, object) {
+  if (typeof object == 'number')
+    var coordinates = object;
+  else if (object.locations)
+    var coordinates = Game.Path.Coordinates(object);
+  else
+    var coordinates = Game.Object.Coordinates(object);
+  return map.tileAt(coordinates)
+}
 
-// pathfinding callback that checks if
-// tile contains a resource
-Map.prototype.finder = function(type, node, distance, meta, output) {
-  output.result[meta || 0] = node;
-  if (Game.Object.get(node, type || 'resources.food.plants.fruit') != null) {
-    //console.log('fruit at', node[0])
-    return -Infinity;
+// convert to absolute coordinate (zone & loc prefix)
+Game.Map.Coordinates = function(map, number, digits) {
+  if (digits == null)
+    var digits = Math.floor(Math.log(number) / Math.LN10) + 1;
+  var modifier = Math.pow(10, Math.min(map.width, digits));
+  var absolute = modifier * Math.pow(10, map.z || 0)
+  if (number < map.max) {
+    var zone = map.zone || 0
+    if (zone)
+      number += modifier * zone;
+    else
+      number += modifier * Math.pow(10, (map.z || 0))
+  } else if (number < modifier * 10) {
+    number -= modifier
+
+    var zone = map.zone || 0
+    if (zone)
+      number += modifier * zone;
+    number += modifier * Math.pow(10, (map.z || 0))
   }
+  return number;
 }

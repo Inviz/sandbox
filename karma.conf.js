@@ -9,6 +9,9 @@ module.exports = function(config) {
  
     // list of files / patterns to load in the browser
     files: [
+      'source/Type.js',
+      'source/Quest.js',
+      'source/Action.js',
       'source/*.js',
       'data/Properties.js',
       'data/Quests.js',

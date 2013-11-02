@@ -1,85 +1,78 @@
 Game.Object = function(object) {
-  if (!object || !object.push) {
-    var i = 0;
-    var array = [];
-  } else {
-    var i = 1
-    var array = object;
+  if (this instanceof Game.Object) {
+    if (!object || !object.push) {
+      var i = 0;
+      var array = [];
+    } else {
+      var i = 1
+      var array = object;
+    }
+    for (var arg, j = arguments.length; i < j; i++) {
+      var arg = arguments[i]; 
+      if (typeof arg == 'string')
+        arg = Game.Value(arg);
+      array.push(arg);
+    }
+    var id = Game.Object.Value(array, 'id');
+    if (id != null)
+      Game.Object[id] = array;
+    return array;
   }
-  for (var arg, j = arguments.length; i < j; i++) {
-    var arg = arguments[i]; 
-    if (typeof arg == 'string')
-      arg = Game.valueOf(arg);
-    array.push(arg);
-  }
-  var id = Game.Object.get(array, 'id');
-  if (id != null)
-    Game.Object[id] = array;
-  return array;
+  return Game.Object[object]// || throw "can't find"
 };
 
-
-Game.Object.getID = function() {
-  return (Game.Object.id = (Game.Object.id || 0) + 1)
-};
-
-Game.Object.find = function(id) {
-  return Game.Object[id]// || throw "can't find"
-};
-
-Game.Object.retrieve = function(id) {
-
-};
-
-Game.Object.store = function(id, object) {
-
-};
+Game.Object.inspect = function(object) {
+  return object.map(function(property) {
+    var parsed = Game.Property(property)
+    var value = typeof parsed.value == 'undefined' ? null : parsed.value
+    return [parsed.type._path, value]
+  })
+}
 
 // get object property value
-Game.Object.get = function() {
-  var equipment = Game.valueOf('equipment') * 10
-  var properties = Game.valueOf('properties') * 1000
+Game.Object.Value = function() {
+  var equipment = Game.Value.Range('equipment')
+  var properties = Game.Value.Range('properties')
 
-  return (Game.Object.get = function(array, type) {
-    if (type !== +type)
-      type = Game.valueOf(type)
+  return (Game.Object.Value = function(object, type, r1, r2, r3) {
+    if (typeof type != 'number')
+      type = Game.Value(type)
     var result;
-    for (var i = 0, j = array.length; i < j; i++) {
+    var range = Math.pow(10, 4 - (Math.floor(Math.log(type) / Math.LN10) + 1))
+    var start = type * range;
+    if (r1 != null)
+      var query = Game.Reference.Value(r1, r2, r3);
+    for (var i = 0, j = object.length; i < j; i++) {
       // parse each property in array
-      var value = array[i];
-      var negate = value < 0;
+      var property = object[i];
+      var negate = property < 0;
       if (negate)
-        value = - value;
-      var digits = Math.floor(Math.log(value) / Math.LN10) + 1;
+        property = - property;
+      var digits = Math.floor(Math.log(property) / Math.LN10) + 1;
       var divisor = Math.pow(10, digits - 4);
-      var kind = Math.floor(value / divisor);
-      if (kind == type) {
-        if (negate) {
-          result = (result || 0) - value + kind * divisor
-        } else {
-          result = (result || 0) + value - kind * divisor
-        }
-      //handle ref erence (type of creature or item)
+      var kind = Math.floor(property / divisor);
+      if (kind >= start && kind < start + range) {
+        var value = property - kind * divisor
+        if (value >= 1000) {
+          divisor /= 1000
+          var val = Math.floor(value / divisor)
+          var reference = value - val * divisor;
+          if (query != reference)
+            continue;
+          divisor /= 10
+          var ref = Math.floor(reference / divisor)
+          value = val
+        } else if (query)
+          continue
+        if (negate)
+          value = - value
+        result = (result || 0) + value
+      // handle game data reference (type of creature, action or item)
       } else if (kind > properties + 1000) {
         var reference = Game[kind];
-        var inheritable = reference._inheritable;
-        if (inheritable === undefined) {
-          for (var property in reference) {
-            var value = reference[property];
-            var number = Game.valueOf(property)
-            if (number) {
-              var definition = Game[number];
-              if (definition.inherit) {
-                if (!inheritable)
-                  inheritable = [];
-                inheritable.push(Game.valueOf(number, reference[property]))
-              }
-            }
-          }
-          reference._inheritable = inheritable || null;
-        }
-        if (inheritable) {
-          var inherited = Game.Object.get(inheritable, type);
+        var values = Game.Reference.Values(reference)
+        if (values) {
+          var inherited = Game.Object.Value(values, type);
           if (inherited != null)
             result = (result || 0) + inherited;
         }
@@ -88,24 +81,19 @@ Game.Object.get = function() {
         if (inherit == null)
           var inherit = Game[type].inherit || false;
         if (inherit) {
-          var remainder = value - kind * divisor
+          var remainder = property - kind * divisor
           divisor /= 1000
           var number = Math.floor(remainder / divisor)
           remainder -= number * divisor;
-          divisor /= 10
-          var ref = Math.floor(remainder / divisor)
-          var reference = remainder - ref * divisor;
-          if (ref == 2) {
-            var obj = Game.Object.find(reference)
-            var referenced = Game.Object.get(obj, type);
-            if (referenced != null)
-              result = (result || 0) + referenced;
-          }
+          var obj = Game.Reference(remainder)
+          var referenced = Game.Object.Value(obj, type);
+          if (referenced != null)
+            result = (result || 0) + referenced;
         }
-        // location
+      // location
       } else if (kind < 2000) {
-        if (type == 1)
-          return value;
+        if (type == 1000)
+          return property;
       }
     }
     return result;
@@ -113,13 +101,13 @@ Game.Object.get = function() {
 }
 
 // set object property
-Game.Object.set = function(array, type, value, r1, r2, r3) {
-  if (type !== +type)
-      type = Game.valueOf(type)
+Game.Object.set = function(object, type, value, r1, r2, r3) {
+  if (typeof type != 'number')
+    type = Game.Value(type)
   var result;
-  for (var i = 0, j = array.length; i < j; i++) {
-    // parse each property in array
-    var prop = array[i];
+  for (var i = 0, j = object.length; i < j; i++) {
+    // parse each property in object
+    var prop = object[i];
     var negate = prop < 0;
     if (negate)
       prop = - prop;
@@ -133,21 +121,20 @@ Game.Object.set = function(array, type, value, r1, r2, r3) {
       break;
     }
   }
-  array[i] = Game.valueOf(type, value, r1, r2, r3);
+  object[i] = Game.Value(type, value, r1, r2, r3);
   var property = Game[type];
-  if (property.set) {
-    property.set.call(array, value, old || 0, property, r1, r2, r3);
-  }
+  if (property.set)
+    property.set.call(object, value, old || 0, property, reference);
 }
 
 // modify property by given amount
-Game.Object.increment = function(array, type, value, r1, r2, r3) {
-  if (type !== +type)
-      type = Game.valueOf(type)
+Game.Object.increment = function(object, type, value, reference) {
+  if (typeof type != 'number')
+    type = Game.Value(type)
   var result;
-  for (var i = 0, j = array.length; i < j; i++) {
-    // parse each property in array
-    var prop = array[i];
+  for (var i = 0, j = object.length; i < j; i++) {
+    // parse each property in object
+    var prop = object[i];
     var negate = prop < 0;
     if (negate)
       prop = - prop;
@@ -164,20 +151,21 @@ Game.Object.increment = function(array, type, value, r1, r2, r3) {
       break;
     }
   }
-  array[i] = Game.valueOf(type, value, r1, r2, r3);
+  object[i] = Game.Value(type, value, reference);
   var property = Game[type];
   if (property.set)
-    property.set.call(array, value, old || 0, property, r1, r2, r3);
+    property.set.call(object, value, old || 0, property, reference);
   return value;
 }
 
 // iterate referenced memes (creature, item)
-Game.Object.identify = function(array, callback) {
-  var resources = Game.valueOf('resources') * 1000;
-  return (Game.Object.identify = function(array, callback) {
-    for (var i = 0, j = array.length; i < j; i++) {
-      // parse each property in array
-      var value = array[i];
+Game.Object.Types = function(object, callback) {
+  var resources = Game.Value.Range('resources');
+
+  return (Game.Object.Types = function(object, callback) {
+    for (var i = 0, j = object.length; i < j; i++) {
+      // parse each property in object
+      var value = object[i];
       var negate = value < 0;
       if (negate)
         value = - value;
@@ -185,22 +173,21 @@ Game.Object.identify = function(array, callback) {
       var divisor = Math.pow(10, digits - 4);
       var kind = Math.floor(value / divisor);
       //handle ref erence (type of creature or item)
-      if (kind > resources + 1000) {
-        callback.call(array, Game[kind], value + kind * divisor);
-      }
+      if (kind > resources + 1000)
+        callback.call(object, Game[kind], value + kind * divisor);
     }
   }).apply(this, arguments)
 }
 
 // iterate referenced objects
-Game.Object.each = function(array, callback) {
-  var equipment = Game.valueOf('equipment') * 10
-  var occupy = Game.valueOf('occupy');
+Game.Object.References = function(object, callback) {
+  var equipment = Game.Value.Range('equipment');
+  var occupy = Game.Value.Range('occupy');
 
-  return (Game.Object.each = function(array, callback) {
-    for (var i = 0, j = array.length; i < j; i++) {
-      // parse each property in array
-      var value = array[i];
+  return (Game.Object.References = function(object, callback) {
+    for (var i = 0, j = object.length; i < j; i++) {
+      // parse object properties
+      var value = object[i];
       var negate = value < 0;
       if (negate)
         value = - value;
@@ -219,26 +206,30 @@ Game.Object.each = function(array, callback) {
         divisor /= 10
         var ref = Math.floor(remainder / divisor)
         var reference = remainder - ref * divisor;
-        var obj = Game.Object.find(reference)
-        callback.call(array, obj, kind);
+        var obj = Game.Object(reference)
+        var res = callback.call(object, obj, kind, result);
+        if (typeof res != 'undefined')
+          var result = res;
       }
     }
+    return result;
   }).apply(this, arguments);
 }
+Game.Object.Objects = Game.Object.References;
 
 // find object property of given type
 // that has the highest value
-Game.Object.max = function(array, type, baseline) {
+Game.Object.max = function(object, type, baseline) {
   if (typeof type != 'number')
-    type = Game.valueOf(type);
+    type = Game.Value(type);
   if (baseline == null)
     var baseline = 0;
   var result;
   var range = Math.pow(10, 4 - (Math.floor(Math.log(type) / Math.LN10) + 1))
   type *= range;
-  for (var i = 0, j = array.length; i < j; i++) {
-    // parse each property in array
-    var value = array[i];
+  for (var i = 0, j = object.length; i < j; i++) {
+    // parse each property in object
+    var value = object[i];
     var negate = value < 0
     if (negate)
       value = - value;
@@ -258,138 +249,100 @@ Game.Object.max = function(array, type, baseline) {
   return result
 }
 
-// find path for creature
-// stores all intermediate computations 
-// to resume pathfinding on next tick
-Game.Object.walk = function(object, callback, max, levels, output) {
-  var id = Game.Object.get(object, 'id');
-  var world = Game.maps[id]
-  var location = Game.Object.get(object, 1);
-  var start = location;
-  var vector = Game.vectors[id];
-  var path = output && output.result;
-  if (path && path.length) {
+// Set object's time
+Game.Object.Time = function(object, time) {
+  if (time % 4 == 0)
+    Game.Object.increment(object, 'hunger', 1);
+};
 
-    // resume previous path at its best node 
-    start = path[0][0];
+// Resolve object's path
+Game.Object.Path = function(object, callback, max, levels, output) {
+  var id = Game.Object.ID(object);
+  object = Game.Object(id);
+  if (callback == null)
+    return output || Game.Object.Output(id, 'walk');
+  var vector = Game.Object.Vector(id)
+  var map = Game.Object.Map(id);
+  return Game.Path.call(object, map, object, callback, max, levels, output, vector)
+};
 
-    // increase max. range to visit more nodes
-    if (levels == null) {
-      var prev = path[path.length - 1];
-      if (prev) {
-        var last = prev[0];
-        var pos = output.locations.indexOf(last);
-        if (pos > -1)
-          max += output.distances[pos]
-      }
-    }
+// Get/set object location
+Game.Object.Location = function(object, value) {
+  var map = this.tileAt ? this : Game.Object.Map(object);
+  var coordinates = Game.Object.Coordinates(object);
+  var location = map.tileAt(coordinates);
+  if (value == null) {
+    return location
+  } else {
+    return map.move(location, value, object);
   }
+};
 
-  // launch pathfinding on a given map zoom level
-  // may zoom out when reached pathfinding limit 
-  var limit = (levels || 0) + 1
-  loop: for (var level = 0; level < limit; level++) {
-    var result = output && output.result;
-    // optimize path
-    if (result && result.length) {
-      var i = levels ? level - 2 : result.length - 1
-      for (var node;;) {
-        var node = result[i];
-        if (node) {
-          var pos = output.locations.indexOf(node[0]);
-          var distance = output.distances[pos];
-          var quality = callback.call(world, node, distance, i, output);
-          switch (quality) {
-            case -Infinity:
-              if (!levels || result[i + 1]) {
-                var j = levels ? i + 1 : i;
-                var removed = result.splice(j, result.length - i);
-                if (!levels)
-                  output.result = removed; 
-              }
-              break loop;
-          }
-        }
-        if (levels) {
-          if (i == level - 1)
-            break;
-          i++
-        } else {
-          if (!node)
-            break;
-          i--
-        }
-      }
-    }
+// Get/set object's coordinates
+Game.Object.Coordinates = function(object, value) {
+  if (typeof object == 'number')
+    object = Game.Object[object];
+  return Game.Object.max(object, 1)
+};
 
-    if (levels) {
+// Get/set map that object belongs to
+Game.Object.Map = function(object, value) {
+  var id = Game.Object.ID(object)
+  if (value == null)
+    return Game.Object.maps[id];
+  else
+    return Game.Object.maps[id] = value;
+};
+Game.Object.maps = {};
 
-      // move to parent zone
-      if (level > 1) {
-        var prev = start;
-        start = world.up(level == 2 ? location : start);
-        if (world.zone == start)
-          break;
-        if (vector) {
-          if (!z)
-            var z = world.opposite(location, vector)
-          z = world.up(z);
-          if (z == start) {
-            break;
-          }
-        }
-      }
-      if (level > 0)
-        output = world.walk(start, callback, max, level - 1, vector, output)
-    } else {
-      output = world.walk(start, callback, max, null, null, output)
-    }
+// store intermediate computations between ticks
+Game.Object.Output = function(object, type, value) {
+  var id = Game.Object.ID(object)
+  var outputs = Game.Object.outputs;
+  var output = (outputs[type] || (outputs[type] = {}))
+  if (value == null)
+    return output[id];
+  else if (value !== false)
+    return output[id] = value;
+  else
+    delete output[id];
+}
+Game.Object.outputs = {};
+
+// get object's moving vector
+Game.Object.Vector = function(object, value) {
+  var id = Game.Object.ID(object)
+  var vectors = Game.Object.vectors;
+  if (value == null)
+    return vectors[id]
+  else
+    return vectors[id] = value
+}
+Game.Object.vectors = {};
+
+// get object id
+Game.Object.ID = function(object) {
+  if (typeof object == 'number')
+    return object;
+  var id = Game.Object.Value(object, 'id');
+  if (id == null) {
+    id = ++Game.Object.id
+    Game.Object[id] = object;
+    Game.Object.set(object, 'id', id);
   }
-  return output;
+  return id;
+}
+Game.Object.id = 0;
+
+// Execute a quest with highest priority,
+// if that adds a more important quest, execute it too
+Game.Object.Quests = function(object) {
+  for (var current = null, prev = null; 
+      (current = Game.Object.max(object, 'quests')) != prev;
+      prev = current)
+    Game.Object.Quest(object, current);
 }
 
-// Execute and schedule subquests  
-Game.Object.invoke = function(array, type, value, ref, r1, r2, id) {
-  var result;
-  for (var i = 0, action; action = type.steps[i++];) {
-    var t = Game.typeOf(action);
-    var p = Game.valueOf(action)
-    var quest = Game[t];
-    if (quest.execute) {
-      var output = quest.output && (Game.output[quest.output] || (Game.output[quest.output] = {}))
-      var cache = output && output[id];
-      //if (cache == null)
-      //  console.info('step', [quest._path])
-      if (quest.condition && quest.condition.call(array, argument, cache, quest, value, ref, r1, r2)) { 
-        if (!quest.complete || quest.complete.call(array, argument, cache, quest, value, ref, r1, r2) !== false) {
-          //console.info('done', [quest._path])
-          if (quest.cleanup)
-            quest.cleanup.call(array, argument, result, quest, value, ref, r1, r2);
+Game.Object.Quest = Game.Quest;
 
-          if (output)
-            output[id] = null;
-
-          if (!type.steps[i]) {
-            //console.log('cleanup', type._reference, array)
-            Game.Object.set(array, type, 0)
-            break;
-          }
-          //Game.Object.set(array, type, 0, ref, r1, r2)
-          //break;
-        }
-        var result = cache;
-      } else {
-        var result = quest.execute.call(array, argument, cache, quest, value, ref, r1, r2);
-      }
-      if (output)
-        output[id] = result
-      var argument = result;
-    } else {
-      if (!quest.precondition || quest.precondition.call(this)) {
-        var o = Game.Object.get(array, t);
-        if (!o)
-          Game.Object.increment(array, t, p, ref, r1, r2)
-      }
-    }
-  }
-}
+Game.Object.Action = Game.Action;
