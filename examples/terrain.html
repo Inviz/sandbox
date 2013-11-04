@@ -147,7 +147,7 @@
   }
 
 
-  uniform sampler2D map;
+  uniform sampler2D terrain;
   uniform sampler2D overlay;
   uniform sampler2D obstruction;
   uniform sampler2D objects;
@@ -234,7 +234,7 @@
   }
 
   // get color modified by mask
-  vec4 getDependentColor(sampler2D map, sampler2D texture, vec2 locals, vec2 grid, vec2 shift, vec2 translate, float fallback) {
+  vec4 getDependentColor(sampler2D data, vec2 locals, vec2 grid, vec2 shift, vec2 translate, float fallback) {
     vec2 coordinates = (tile * mapSize - floor(tile * mapSize));
     float pixel = 1.0 - 1.0 / tileSize;
     if ((coordinates.x > pixel && coordinates.y >  1.0 / tileSize / 2.0) 
@@ -242,11 +242,8 @@
       translate.y -= 1.0;
 
     vec2 pos = floor(tile * mapSize + shift) / mapSize;
-    vec4 location = texture2D(map, pos);
+    vec4 location = texture2D(data, pos);
     float variation = floor((snoise(floor(tile * mapSize)) + 1.0) / 2.0 * 4.0);
-    if (location.r > 0.0 && fallback == 1.0) {
-      return vec4(0,0,1,1);
-    }
     if (location.a > 0.0) {
       vec2 maskposition = vec2(floor(location.a * 255.0), fallback);
       vec4 masked = getMaskedColor(spritesTransitions, locals, maskposition, grid, vec2(0, 0), translate);
@@ -255,7 +252,7 @@
           return masked;
       } else {
         if (masked.a == 0.0)
-          return getColor(texture, locals, vec2(variation, 0), grid, shift, translate);
+          return getColor(spritesTerrain, locals, vec2(variation, 0), grid, shift, translate);
       }
     }
     vec2 position = vec2(variation, floor(location.b * 255.0));
@@ -264,15 +261,15 @@
         return vec4(0, 0, 0, 0);
       else
         position.y += 1.0;
-    return getColor(texture, locals, position, grid, shift, translate);
+    return getColor(spritesTerrain, locals, position, grid, shift, translate);
   }
 
   vec4 getTerrainColor(vec2 locals, vec2 shift) {
-    return getDependentColor(map, spritesTerrain, locals, vec2(tileSize * 2.0, tileSize), shift, vec2(0, 0), 1.0);
+    return getDependentColor(terrain, locals, vec2(tileSize * 2.0, tileSize), shift, vec2(0, 0), 1.0);
   }
 
-  vec4 getOverlayedColor(vec2 locals, vec2 shift) {
-    return getDependentColor(overlay, spritesTerrain, locals, vec2(tileSize * 2.0, tileSize), shift, vec2(0, 0), 0.0);
+  vec4 getOverlayColor(vec2 locals, vec2 shift) {
+    return getDependentColor(overlay, locals, vec2(tileSize * 2.0, tileSize), shift, vec2(0, 0), 0.0);
   }
 
   vec4 getObjectColor(vec2 locals, vec2 shift) {
@@ -310,7 +307,7 @@
 
 
 
-  vec4 getObstructedColorChannelX(vec2 locals, vec2 shift, float row, float pos, float value, vec2 now, vec4 color) {
+  vec4 getObstructionColorChannelX(vec2 locals, vec2 shift, float row, float pos, float value, vec2 now, vec4 color) {
     float y = floor(mod(value - 1.0, 100.0) / 10.0);
     if (y > 0.0) {
       vec4 result = getObjectColor(locals, vec2(shift.x + row - pos, shift.y + row));
@@ -320,7 +317,7 @@
     return color;
   }
 
-  vec4 getObstructedColorChannelY(vec2 locals, vec2 shift, float row, float pos, float value, vec2 now, vec4 color) {
+  vec4 getObstructionColorChannelY(vec2 locals, vec2 shift, float row, float pos, float value, vec2 now, vec4 color) {
     float x = mod(value - 1.0, 10.0);
     if (x >= pos) {
       vec4 result = getObjectColor(locals, vec2(shift.x + row, shift.y + row - pos));
@@ -330,7 +327,7 @@
     return color;
   }
 
-  vec4 getObstructedColorChannelC(vec2 locals, vec2 shift, float row, float value, vec2 now, vec4 color) {
+  vec4 getObstructionColorChannelC(vec2 locals, vec2 shift, float row, float value, vec2 now, vec4 color) {
     //if (now.x < mapSize.x - 1.0 && now.y < mapSize.y - 1.0) {
       vec4 result = getObjectColor(locals, shift + row);
       if (result.a > 0.0)
@@ -344,7 +341,7 @@
 
   // this function decodes that information
   // and does necessary texture lookups
-  vec4 getObstructedColor(vec2 locals, vec2 shift) {
+  vec4 getObstructionColor(vec2 locals, vec2 shift) {
     vec2 now = floor(tile * mapSize + shift);
     vec2 pos = now / mapSize;
     vec4 location = texture2D(obstruction, pos);
@@ -356,60 +353,60 @@
 
     // 4th row
     if (object.a > 0.0) {
-      color = getObstructedColorChannelC(locals, shift, 4.0, object.a, now, color);
-      color = getObstructedColorChannelY(locals, shift, 4.0, 1.0, object.a, now, color);
-      color = getObstructedColorChannelX(locals, shift, 4.0, 1.0, object.a, now, color);
+      color = getObstructionColorChannelC(locals, shift, 4.0, object.a, now, color);
+      color = getObstructionColorChannelY(locals, shift, 4.0, 1.0, object.a, now, color);
+      color = getObstructionColorChannelX(locals, shift, 4.0, 1.0, object.a, now, color);
     }
 
     // 3d row
     if (object.a > 0.0)
-      color = getObstructedColorChannelY(locals, shift, 4.0, 2.0, object.a, now, color);
+      color = getObstructionColorChannelY(locals, shift, 4.0, 2.0, object.a, now, color);
     if (object.b > 0.0)
-      color = getObstructedColorChannelC(locals, shift, 3.0, object.b, now, color);
+      color = getObstructionColorChannelC(locals, shift, 3.0, object.b, now, color);
     if (object.a > 0.0)
-      color = getObstructedColorChannelX(locals, shift, 4.0, 2.0, object.a, now, color);
+      color = getObstructionColorChannelX(locals, shift, 4.0, 2.0, object.a, now, color);
     if (object.a > 0.0)
-      color = getObstructedColorChannelY(locals, shift, 4.0, 3.0, object.a, now, color);
+      color = getObstructionColorChannelY(locals, shift, 4.0, 3.0, object.a, now, color);
     if (object.b > 0.0)
-      color = getObstructedColorChannelY(locals, shift, 3.0, 1.0, object.b, now, color);
+      color = getObstructionColorChannelY(locals, shift, 3.0, 1.0, object.b, now, color);
     if (object.b > 0.0)
-      color = getObstructedColorChannelX(locals, shift, 3.0, 1.0, object.b, now, color);
+      color = getObstructionColorChannelX(locals, shift, 3.0, 1.0, object.b, now, color);
     if (object.a > 0.0)
-      color = getObstructedColorChannelX(locals, shift, 4.0, 3.0, object.a, now, color);
+      color = getObstructionColorChannelX(locals, shift, 4.0, 3.0, object.a, now, color);
 
 
     // 2nd row
     if (object.a > 0.0)
-      color = getObstructedColorChannelY(locals, shift, 4.0, 4.0, object.a, now, color);
+      color = getObstructionColorChannelY(locals, shift, 4.0, 4.0, object.a, now, color);
     if (object.b > 0.0)
-      color = getObstructedColorChannelY(locals, shift, 3.0, 2.0, object.b, now, color);
+      color = getObstructionColorChannelY(locals, shift, 3.0, 2.0, object.b, now, color);
     if (object.g > 0.0)
-      color = getObstructedColorChannelC(locals, shift, 2.0, object.g, now, color);
+      color = getObstructionColorChannelC(locals, shift, 2.0, object.g, now, color);
     if (object.b > 0.0)
-      color = getObstructedColorChannelX(locals, shift, 3.0, 2.0, object.b, now, color);
+      color = getObstructionColorChannelX(locals, shift, 3.0, 2.0, object.b, now, color);
     if (object.a > 0.0)
-      color = getObstructedColorChannelX(locals, shift, 4.0, 4.0, object.a, now, color);
+      color = getObstructionColorChannelX(locals, shift, 4.0, 4.0, object.a, now, color);
     if (object.b > 0.0)
-      color = getObstructedColorChannelY(locals, shift, 3.0, 3.0, object.b, now, color);
+      color = getObstructionColorChannelY(locals, shift, 3.0, 3.0, object.b, now, color);
     if (object.g > 0.0)
-      color = getObstructedColorChannelY(locals, shift, 2.0, 1.0, object.g, now, color);
+      color = getObstructionColorChannelY(locals, shift, 2.0, 1.0, object.g, now, color);
     if (object.g > 0.0)
-      color = getObstructedColorChannelX(locals, shift, 2.0, 1.0, object.g, now, color);
+      color = getObstructionColorChannelX(locals, shift, 2.0, 1.0, object.g, now, color);
     if (object.b > 0.0)
-      color = getObstructedColorChannelX(locals, shift, 3.0, 3.0, object.b, now, color);
+      color = getObstructionColorChannelX(locals, shift, 3.0, 3.0, object.b, now, color);
 
 
     // 1st row
     if (object.g > 0.0)
-      color = getObstructedColorChannelY(locals, shift, 2.0, 2.0, object.g, now, color);
+      color = getObstructionColorChannelY(locals, shift, 2.0, 2.0, object.g, now, color);
     if (object.r > 0.0)
-      color = getObstructedColorChannelC(locals, shift, 1.0, object.r, now, color);
+      color = getObstructionColorChannelC(locals, shift, 1.0, object.r, now, color);
     if (object.g > 0.0)
-      color = getObstructedColorChannelX(locals, shift, 2.0, 2.0, object.g, now, color);
+      color = getObstructionColorChannelX(locals, shift, 2.0, 2.0, object.g, now, color);
     if (object.r > 0.0)
-      color = getObstructedColorChannelY(locals, shift, 1.0, 1.0, object.r, now, color);
+      color = getObstructionColorChannelY(locals, shift, 1.0, 1.0, object.r, now, color);
     if (object.r > 0.0)
-      color = getObstructedColorChannelX(locals, shift, 1.0, 1.0, object.r, now, color);
+      color = getObstructionColorChannelX(locals, shift, 1.0, 1.0, object.r, now, color);
 
 
     return color;
@@ -418,7 +415,7 @@
   void main() {
     vec2 locals = pixel - getTilePosition(tile);
     vec2 shift = vec2(0, 0);
-    vec4 obstructed = getObstructedColor(locals, shift);
+    vec4 obstructed = getObstructionColor(locals, shift);
     if (obstructed.a > 0.0) {
       gl_FragColor = obstructed;
     } else {
@@ -426,12 +423,12 @@
       if (object.a > 0.0) {
         gl_FragColor =  object;
       } else {
-        vec4 overlayed = getOverlayedColor(locals, shift);
+        vec4 overlayed = getOverlayColor(locals, shift);
         if (overlayed.a > 0.0) {
           gl_FragColor = overlayed;
         } else {
-          vec4 terrain = getTerrainColor(locals, shift);
-          gl_FragColor = terrain;
+          vec4 ground = getTerrainColor(locals, shift);
+          gl_FragColor = ground;
         }
       }
     }
@@ -472,15 +469,15 @@
   var projection  = GL.Program.Uniform(gl, program, 'projection');
   var orientation = GL.Program.Uniform(gl, program, 'orientation');
 
-  var map         = GL.Program.Uniform(gl, program, 'map');
-  var heightmap   = GL.Program.Uniform(gl, program, 'heightmap');
+  var terrain     = GL.Program.Uniform(gl, program, 'terrain');
+  var subterrain  = GL.Program.Uniform(gl, program, 'subterrain');
+  var overlay     = GL.Program.Uniform(gl, program, 'overlay');
   var objects     = GL.Program.Uniform(gl, program, 'objects');
   var obstruction = GL.Program.Uniform(gl, program, 'obstruction');
-  var overlay     = GL.Program.Uniform(gl, program, 'overlay');
 
 
   var geometry = [
-    //x  y  u  v
+    //x  y    u  v
       0,-0.5, 1, 1,
      -1, 0,   0, 1,
       1, 0,   1, 0,
@@ -518,25 +515,17 @@
     }(name)
   }
 
-  var getMap = function() {
-    var canvas = document.createElement('canvas')
-    var context = canvas.getContext('2d');
-    var height = options.mapSize, width = options.mapSize;
-    canvas.height = height;
-    canvas.width = width;
-    var data = context.createImageData(width, height);
-
-    var values = []
-    for (var i = 0; i < width * height; i++) {
+  var generateTerrain = function() {
+    var data = getImageData('terrain')
+    for (var i = 0, j = Math.pow(options.mapSize, 2); i < j; i++) {
       // level
-      data.data[i * 4 + 0] = getRegion(data, i, width, mountians) ? 2 : 0;
+      data.data[i * 4 + 0] = matchRegion(data, i, options.mapSize, mountians) ? 2 : 0;
       // landscape
       data.data[i * 4 + 1] = Math.floor(Math.random() * 2);
       // terrain
       data.data[i * 4 + 2] = Math.floor(Math.random() * 2)
       // terrain mask
-      data.data[i * 4 + 3] = 0;
-      setSurroundings(data, i, width, 3, true)
+      setPattern(data, i, options.mapSize, 3, true)
     }
     return data;
   }
@@ -556,7 +545,7 @@
     [8, 18, 0, 0]
   ]
 
-  var getRegion = function(data, i, width, regions) {
+  var matchRegion = function(data, i, width, regions) {
     var x = i % width
     var y = Math.floor(i / width);
     for (var pool, j = 0; pool = regions[j++];) {
@@ -567,31 +556,24 @@
     }
   }
 
-  var getOverlay = function() {
-    var canvas = document.createElement('canvas')
-    var context = canvas.getContext('2d');
-    var height = options.mapSize, width = options.mapSize;
-    canvas.height = height;
-    canvas.width = width;
-    var data = context.createImageData(width, height);
-
-    var values = []
-    for (var i = 0; i < width * height; i++) {
+  var generateOverlay = function() {
+    var data = getImageData('overlay');
+    for (var i = 0, j = Math.pow(options.mapSize, 2); i < j; i++) {
       // cover
       data.data[i * 4 + 0] = 0;
       // cover mask
       data.data[i * 4 + 1] = Math.floor(Math.random() * 2);
       // water
-      data.data[i * 4 + 2] = getRegion(data, i, width, water) ? 1 : 0;
+      data.data[i * 4 + 2] = matchRegion(data, i, options.mapSize, water) ? 1 : 0;
       // water mask
-      setSurroundings(data, i, width, 3, true)
+      setPattern(data, i, options.mapSize, 3, true)
     }
     return data;
   }
 
   // patterns for auto-tiling
   // matches tiles against transitions spritesheet
-  var surroundings = [
+  var patterns = [
     // 4 sides
     [2 | 8 | 16 | 64, 9],
     // 3 sides
@@ -639,7 +621,7 @@
   ]
 
 
-  var getSurroundings = function(data, i, width, raw) {
+  var getPattern = function(data, i, width, raw) {
     var type = getTerrainType(data, i);
     var result = 0;
     if (getTerrainType(data, i - width - 1) < type)
@@ -661,23 +643,23 @@
     if (raw)
       return result;
     if (result)
-      for (var i = 0, pattern; pattern = surroundings[i++];)
+      for (var i = 0, pattern; pattern = patterns[i++];)
         if ((result & pattern[0]) == pattern[0])
           return pattern[1]
     return 0;
   }
 
-  var setSurroundings = function(data, i, width, offset, around) {
-    data.data[i * 4 + offset] = getSurroundings(data, i, width, false, offset);
+  var setPattern = function(data, i, width, offset, around) {
+    data.data[i * 4 + offset] = getPattern(data, i, width, false, offset);
     if (!around) return;
-    setSurroundings(data, i - width - 1, width, offset)
-    setSurroundings(data, i - width, width, offset)
-    setSurroundings(data, i - width + 1, width, offset)
-    setSurroundings(data, i - 1, width, offset)
-    setSurroundings(data, i + 1, width, offset)
-    setSurroundings(data, i + width - 1, width, offset)
-    setSurroundings(data, i + width, width, offset)
-    setSurroundings(data, i + width + 1, width, offset)
+    setPattern(data, i - width - 1, width, offset)
+    setPattern(data, i - width, width, offset)
+    setPattern(data, i - width + 1, width, offset)
+    setPattern(data, i - 1, width, offset)
+    setPattern(data, i + 1, width, offset)
+    setPattern(data, i + width - 1, width, offset)
+    setPattern(data, i + width, width, offset)
+    setPattern(data, i + width + 1, width, offset)
   }
 
   var getTerrainType = function(data, i) {
@@ -711,7 +693,6 @@
   var generateObject = function(data, obstruction, i, size, x, y) {
     if (size == null)
       var size = Math.floor(Math.random() * 3);
-    console.error(size)
     switch (size) {
       case 0:
         data.data[i * 4 + 0] = Math.floor(Math.random() * 9);
@@ -768,72 +749,74 @@
     return data;
   }
 
-  var getCanvas = function(width, height) {
-    var canvas = document.createElement('canvas')
-    var context = canvas.getContext('2d');
-    canvas.height = height;
-    canvas.width = width;
+  var canvases = {};
+  var getCanvas = function(name) {
+    var canvas = canvases[name];
+    if (!canvas) {
+      canvas = document.createElement('canvas')
+      var context = canvas.getContext('2d');
+      canvas.height = options.mapSize;
+      canvas.width = options.mapSize;
+      canvases[name] = canvas;
+    }
     return canvas;
   }
 
-  
+  var datas = {};
+  var getImageData = function(name) {
+    var data = datas[name];
+    if (!data) {
+      var canvas = getCanvas(name);
+      var data = canvas.getContext('2d').createImageData(options.mapSize, options.mapSize);
+      datas[name] = data;
+    }
+    return data; 
+  }
 
-  var getThings = function() {
-    var height = options.mapSize, width = options.mapSize;
-    var canvas = getCanvas(width, height)
-    var data = context.createImageData(width, height);
+  var setImageData = function(name, data) {
+    getCanvas(name).getContext('2d').putImageData(data, 0, 0)
+  }
 
-    var obstruction = getCanvas(width, height)
-    var obstructionData = obstructionContext.createImageData(width, height);
+  var generateObjects = function() {
+    var objects = getImageData('objects')
+    var obstruction = getImageData('obstruction');
 
 
-    generateObject(data, obstructionData, 425, 2, 1, 0);
-    //generateObject(data, obstructionData, 425 - 1, 2, 1, 0);
-    //generateObject(data, obstructionData, 686, 2, 0, 0);
-    //generateObject(data, obstructionData, 425 + 32 + 1, 2, 2, 0);
-    //generateObject(data, obstructionData, 425 + 32 -1, 2, 2, 1, 0);
-    //generateObject(data, obstructionData, 53, 1, 1, 0);
-    //generateObject(data, obstructionData, 54, 1, 1, 0);
-    //generateObject(data, obstructionData, 38, 1, 1, 0);
-    //return data;
+    generateObject(objects, obstruction, 425, 2, 1, 0);
     
     //for (var i = 0; i < width * height / 5 ; i++) {
     //  for (var pos; pos = Math.floor(Math.random() * (options.mapSize * options//.mapSize));)
     //    if (!data.data[pos * 4 + 3])
     //      break; 
-    //  generateObject(data, obstructionData, pos);
+    //  generateObject(objects, obstruction, pos);
     //}
-    context.putImageData(data, 0, 0)
-    obstructionContext.putImageData(obstructionData, 0, 0)
-    document.body.appendChild(canvas)
-    document.body.appendChild(obstruction)
 
     return {
-      objects: data,
-      obstruction: obstructionData
+      objects: objects,
+      obstruction: obstruction
     }
   }
   //gl.enable(gl.CULL_FACE);
   //gl.enable(gl.DEPTH_TEST)
-  var atlasImage, buffer;
-  var mapImage = getMap();
-  var overlayImage = getOverlay()
-  var things = getThings()
-  var objectsImage = things.objects;
-  var obstructionImage = things.obstruction;
+  var buffer;
+  var terrainData = generateTerrain();
+  var subterrainData = getImageData('subterrain')
+  var overlayData = generateOverlay()
+  var things = generateObjects()
+  var objectsData = things.objects;
+  var obstructionData = things.obstruction;
 
-  var scrollX = 0; scrollY = 0;
-  var i = 0;
-  var mapTexture, atlasTexture
-  var speedX = 1, speedY = 1;
-
-  console.error(mapImage.data[686 * 4 + 3], '~~')
+  document.body.appendChild(getCanvas('terrain'));
+  document.body.appendChild(getCanvas('objects'));
+  document.body.appendChild(getCanvas('obstruction'));
+  document.body.appendChild(getCanvas('overlay'));
 
   var depth = window.devicePixelRatio || 1;
   var view = true
   window.onresize = function() {
     view = true;
   }
+  var i = 0;
   function render() {
     //if (i > 0)
     console.profile(i);
@@ -845,7 +828,7 @@
 
       // set meta data
       gl.uniform2f(atlasSize, textures.spritesTerrain.image.width, textures.spritesTerrain.image.height);
-      gl.uniform2f(mapSize, mapImage.width, mapImage.height);
+      gl.uniform2f(mapSize, options.mapSize, options.mapSize);
       gl.uniform1f(tileSize, 32);
 
       // iterate geometry in pairs of two
@@ -856,18 +839,18 @@
       gl.vertexAttribPointer(texture, 2, gl.FLOAT, false, 16, 8);
 
       // upload & assign textures
-      mapTexture = GL.Texture(gl, 0, mapImage, true)
-      objectsTexture = GL.Texture(gl, 1, objectsImage, true);
-      obstructionTexture = GL.Texture(gl, 2, obstructionImage, true)
-      overlayTexture = GL.Texture(gl, 3, overlayImage, true)
-      heightmapTexture = GL.Texture(gl, 4, heightmapImage, true)
+      GL.Texture(gl, 0, terrainData, true);
+      GL.Texture(gl, 1, subterrainData, true);
+      GL.Texture(gl, 2, overlayData, true);
+      GL.Texture(gl, 3, objectsData, true);
+      GL.Texture(gl, 4, obstructionData, true);
       
 
-      gl.uniform1i(map, 0);
-      gl.uniform1i(objects, 1);
-      gl.uniform1i(obstruction, 2);
-      gl.uniform1i(overlay, 3);
-      gl.uniform1i(heightmap, 4);
+      gl.uniform1i(terrain, 0);
+      gl.uniform1i(subterrain, 1);
+      gl.uniform1i(overlay, 2);
+      gl.uniform1i(objects, 3);
+      gl.uniform1i(obstruction, 4);
       var k = 4;
       for (var name in textures) {
         if (!textures[name].location)
@@ -894,26 +877,19 @@
     // set resolution
     var h = gl.drawingBufferHeight;
     var w = gl.drawingBufferWidth
-    var max = Math.max(mapImage.width, mapImage.height) * options.tileSize;
+    var max = options.mapSize * options.tileSize;
     var total = Math.max(h, w)
     var ratio = w / h;
-    gl.uniform2f(viewport, mapImage.width * options.tileSize * 2, mapImage.height * options.tileSize);
+    
+    gl.uniform2f(viewport, options.mapSize * options.tileSize * 2, options.mapSize * options.tileSize);
+
     gl.viewport(0, 0, w, h);
 
-    gl.uniform2f(scroll, scrollX, scrollY);
+    gl.uniform2f(scroll, 0, 0);
 
     // Draw the thing.
     gl.drawArrays(gl.TRIANGLES, 0, 6);
-    //console.profileEnd(i);
 
-    // update scrolling position
-    //scrollX = (scrollX + speedX)
-    //scrollY = (scrollY + speedY)
-    if (scrollX > mapImage.width * options.tileSize || scrollX < 0)
-      speedX = - speedX
-    if (scrollY > mapImage.height * options.tileSize || scrollY < 0)
-      speedY = - speedY
-    
     // schedule next frame
     if (i < 2)
       requestAnimationFrame(function() {
@@ -921,6 +897,9 @@
       });
     console.profileEnd(i);
     i++;
+    for (var name in canvases)
+      if (canvases[name].offsetHeight)
+        setImageData(name, getImageData(name));
   }
 
 
@@ -977,10 +956,10 @@
     var matrix = mat4.create()
 
     // scale by ratio
-    mat4.scale(matrix, matrix, [ (mapImage.width / mapImage.height), 1, 1])
+    // mat4.scale(matrix, matrix, [ (mapImage.width / mapImage.height), 1, 1])
 
     // scale map up, to make units equal device pixels
-    var ratio = (mapImage.height * options.tileSize / window.innerHeight) * options.zoom// * 1.4
+    var ratio = (options.mapSize * options.tileSize / window.innerHeight) * options.zoom// * 1.4
     mat4.scale(matrix, matrix, [ ratio, ratio, ratio])
     return matrix
   }
