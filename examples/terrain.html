@@ -75,12 +75,86 @@
 <script id="2d-fragment-shader" type="x-shader/x-fragment">
   precision mediump float;
 
+  //
+  // Description : Array and textureless GLSL 2D simplex noise function.
+  //      Author : Ian McEwan, Ashima Arts.
+  //  Maintainer : ijm
+  //     Lastmod : 20110822 (ijm)
+  //     License : Copyright (C) 2011 Ashima Arts. All rights reserved.
+  //               Distributed under the MIT License. See LICENSE file.
+  //               https://github.com/ashima/webgl-noise
+  // 
+
+  vec3 mod289(vec3 x) {
+    return x - floor(x * (1.0 / 289.0)) * 289.0;
+  }
+
+  vec2 mod289(vec2 x) {
+    return x - floor(x * (1.0 / 289.0)) * 289.0;
+  }
+
+  vec3 permute(vec3 x) {
+    return mod289(((x*34.0)+1.0)*x);
+  }
+
+  float snoise(vec2 v)
+    {
+    const vec4 C = vec4(0.211324865405187,  // (3.0-sqrt(3.0))/6.0
+                        0.366025403784439,  // 0.5*(sqrt(3.0)-1.0)
+                       -0.577350269189626,  // -1.0 + 2.0 * C.x
+                        0.024390243902439); // 1.0 / 41.0
+  // First corner
+    vec2 i  = floor(v + dot(v, C.yy) );
+    vec2 x0 = v -   i + dot(i, C.xx);
+
+  // Other corners
+    vec2 i1;
+    //i1.x = step( x0.y, x0.x ); // x0.x > x0.y ? 1.0 : 0.0
+    //i1.y = 1.0 - i1.x;
+    i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+    // x0 = x0 - 0.0 + 0.0 * C.xx ;
+    // x1 = x0 - i1 + 1.0 * C.xx ;
+    // x2 = x0 - 1.0 + 2.0 * C.xx ;
+    vec4 x12 = x0.xyxy + C.xxzz;
+    x12.xy -= i1;
+
+  // Permutations
+    i = mod289(i); // Avoid truncation effects in permutation
+    vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
+                  + i.x + vec3(0.0, i1.x, 1.0 ));
+
+    vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+    m = m*m ;
+    m = m*m ;
+
+  // Gradients: 41 points uniformly over a line, mapped onto a diamond.
+  // The ring size 17*17 = 289 is close to a multiple of 41 (41*7 = 287)
+
+    vec3 x = 2.0 * fract(p * C.www) - 1.0;
+    vec3 h = abs(x) - 0.5;
+    vec3 ox = floor(x + 0.5);
+    vec3 a0 = x - ox;
+
+  // Normalise gradients implicitly by scaling m
+  // Approximation of: m *= inversesqrt( a0*a0 + h*h );
+    m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+
+  // Compute final noise value at P
+    vec3 g;
+    g.x  = a0.x  * x0.x  + h.x  * x0.y;
+    g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+    return 130.0 * dot(m, g);
+  }
+
+
   uniform sampler2D map;
+  uniform sampler2D overlay;
   uniform sampler2D obstruction;
   uniform sampler2D objects;
 
   uniform sampler2D spritesLandscape;
   uniform sampler2D spritesTerrain;
+  uniform sampler2D spritesTransitions;
 
   uniform sampler2D sprites64x64;
   uniform sampler2D sprites64x160;
@@ -105,7 +179,7 @@
     );
   }
 
-  vec4 color(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift, vec2 translate) {
+  vec4 getColor(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift, vec2 translate) {
     vec2 offset = position * grid;
     vec2 start = getTilePosition(tile + shift / mapSize);
     vec2 diff = ((pixel - locals) - start);
@@ -118,23 +192,87 @@
       return vec4(0, 0, 0, 0);
   }
 
-  vec4 getDependentColor(sampler2D map, sampler2D texture, vec2 locals, vec2 grid, vec2 shift, vec2 translate) {
+  // get color of a mask pixel
+  // also composes any combination of corners from separate corner sprites
+  vec4 getMaskedColor(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift, vec2 translate) {
+    vec2 coordinates = (tile * mapSize - floor(tile * mapSize));
+    float x = position.x;
+    float sprite = 0.0;
+    if (x > 32.0) {
+      // sw
+      if (coordinates.x < 0.5 && coordinates.y > 0.5) {
+        if (x == 43.0 || x == 33.0 || x == 36.0 || x == 38.0 || x == 39.0 || x == 40.0 || x == 42.0) {
+          sprite = 11.0;
+        }
+      }
+      // ne
+      if (coordinates.x < 0.5 && coordinates.y < 0.5) {
+        if (x == 43.0 || x == 33.0 || x == 34.0 || x == 37.0 || x == 39.0 || x == 40.0 || x == 41.0) {
+          sprite = 12.0;
+        }
+      }
+      // ne
+      if (coordinates.x > 0.5 && coordinates.y < 0.5) {
+        if (x == 43.0 || x == 34.0 || x == 35.0 || x == 38.0 || x == 40.0 || x == 41.0 || x == 42.0) {
+          sprite = 13.0;
+        }
+      }
+      // se
+      if (coordinates.x > 0.5 && coordinates.y > 0.5) {
+        if (x == 43.0 || x == 35.0 || x == 36.0 || x == 37.0 || x == 39.0 || x == 41.0 || x == 42.0) {
+          sprite = 14.0;
+        }
+      }
+      if (sprite == 0.0) {
+        return vec4(0, 0, 0, 1);
+      } else {
+        x = sprite;
+      }
+    }
+    position.x = x - 1.0;
+    return getColor(spritesTransitions, locals, position, grid, vec2(0, 0), translate);
+  }
+
+  // get color modified by mask
+  vec4 getDependentColor(sampler2D map, sampler2D texture, vec2 locals, vec2 grid, vec2 shift, vec2 translate, float fallback) {
+    vec2 coordinates = (tile * mapSize - floor(tile * mapSize));
+    float pixel = 1.0 - 1.0 / tileSize;
+    if ((coordinates.x > pixel && coordinates.y >  1.0 / tileSize / 2.0) 
+    || (coordinates.y > pixel && coordinates.x > 1.0 / tileSize / 2.0) )
+      translate.y -= 1.0;
+
     vec2 pos = floor(tile * mapSize + shift) / mapSize;
     vec4 location = texture2D(map, pos);
-    vec2 position = floor(location.xy * 255.0);
-    return color(texture, locals, position, grid, shift, translate);
+    float variation = floor((snoise(floor(tile * mapSize)) + 1.0) / 2.0 * 4.0);
+    if (location.r > 0.0 && fallback == 1.0) {
+      return vec4(0,0,1,1);
+    }
+    if (location.a > 0.0) {
+      vec2 maskposition = vec2(floor(location.a * 255.0), fallback);
+      vec4 masked = getMaskedColor(spritesTransitions, locals, maskposition, grid, vec2(0, 0), translate);
+      if (fallback == 0.0) {
+        if (!(masked.r == 0.0 && masked.g == 0.0 && masked.b == 0.0 && masked.a == 1.0))
+          return masked;
+      } else {
+        if (masked.a == 0.0)
+          return getColor(texture, locals, vec2(variation, 0), grid, shift, translate);
+      }
+    }
+    vec2 position = vec2(variation, floor(location.b * 255.0));
+    if (fallback == 0.0)
+      if (location.b == 0.0)
+        return vec4(0, 0, 0, 0);
+      else
+        position.y += 1.0;
+    return getColor(texture, locals, position, grid, shift, translate);
   }
 
   vec4 getTerrainColor(vec2 locals, vec2 shift) {
-    float py = tileSize;
-    vec2 coordinates = (tile * mapSize - floor(tile * mapSize));
-    vec2 translate = vec2(0, 0);
-    float pixel = 1.0 - 1.0 / tileSize;
-    if ((coordinates.x >= pixel && coordinates.y >  1.0 / tileSize) 
-    || (coordinates.y >= pixel && coordinates.x > 1.0 / tileSize) )
-      translate.y -= 1.0;
+    return getDependentColor(map, spritesTerrain, locals, vec2(tileSize * 2.0, tileSize), shift, vec2(0, 0), 1.0);
+  }
 
-    return getDependentColor(map, spritesTerrain, locals, vec2(tileSize * 2.0, tileSize), shift, translate);
+  vec4 getOverlayedColor(vec2 locals, vec2 shift) {
+    return getDependentColor(overlay, spritesTerrain, locals, vec2(tileSize * 2.0, tileSize), shift, vec2(0, 0), 0.0);
   }
 
   vec4 getObjectColor(vec2 locals, vec2 shift) {
@@ -150,14 +288,14 @@
       if (object.x >= 200.0) {
         vec2 grid192x160 = vec2(tileSize * 6.0, tileSize * 5.0);
         object.x -= 200.0;
-        return color(sprites192x160, locals, object.xy , grid192x160, shift, translate);
+        return getColor(sprites192x160, locals, object.xy , grid192x160, shift, translate);
       } else if (object.x >= 100.0) {
         object.x -= 100.0;
         vec2 grid64x160 = vec2(tileSize * 2.0, tileSize * 5.0);
-        return color(sprites64x160, locals, object.xy, grid64x160, shift, translate);
+        return getColor(sprites64x160, locals, object.xy, grid64x160, shift, translate);
       } else {
         vec2 grid64x64 = vec2(tileSize * 2.0, tileSize * 2.0);
-        return color(sprites64x64, locals, object.xy, grid64x64, shift, translate);
+        return getColor(sprites64x64, locals, object.xy, grid64x64, shift, translate);
       }
     }
     return vec4(0, 0, 0, 0);
@@ -279,18 +417,26 @@
 
   void main() {
     vec2 locals = pixel - getTilePosition(tile);
-    vec4 obstructed = getObstructedColor(locals, vec2(0, 0));
+    vec2 shift = vec2(0, 0);
+    vec4 obstructed = getObstructedColor(locals, shift);
     if (obstructed.a > 0.0) {
       gl_FragColor = obstructed;
     } else {
-      vec4 object = getObjectColor(locals, vec2(0, 0));
+      vec4 object = getObjectColor(locals, shift);
       if (object.a > 0.0) {
         gl_FragColor =  object;
       } else {
-        vec4 terrain = getTerrainColor(locals, vec2(0, 0));
-        gl_FragColor =  terrain;
+        vec4 overlayed = getOverlayedColor(locals, shift);
+        if (overlayed.a > 0.0) {
+          gl_FragColor = overlayed;
+        } else {
+          vec4 terrain = getTerrainColor(locals, shift);
+          gl_FragColor = terrain;
+        }
       }
     }
+    //if (gl_FragColor.a == 0.0)
+    //  gl_FragColor = vec4(tile, 0, 1);
   }
 </script>
 
@@ -327,8 +473,10 @@
   var orientation = GL.Program.Uniform(gl, program, 'orientation');
 
   var map         = GL.Program.Uniform(gl, program, 'map');
+  var heightmap   = GL.Program.Uniform(gl, program, 'heightmap');
   var objects     = GL.Program.Uniform(gl, program, 'objects');
   var obstruction = GL.Program.Uniform(gl, program, 'obstruction');
+  var overlay     = GL.Program.Uniform(gl, program, 'overlay');
 
 
   var geometry = [
@@ -343,11 +491,12 @@
   ];
 
   var Textures = {
-    'spritesTerrain':   'examples/sprites/terrain.png',
-    'spritesLandscape': 'examples/sprites/landscape.png',
-    'sprites64x64':     'examples/sprites/sprites64x64.png',
-    'sprites64x160':    'examples/sprites/sprites64x160.png',
-    'sprites192x160':   'examples/sprites/sprites192x160.png'
+    'spritesTerrain':     'examples/sprites/terrain.png',
+    'spritesLandscape':   'examples/sprites/landscape.png',
+    'spritesTransitions': 'examples/sprites/transitions.png',
+    'sprites64x64':       'examples/sprites/sprites64x64.png',
+    'sprites64x160':      'examples/sprites/sprites64x160.png',
+    'sprites192x160':     'examples/sprites/sprites192x160.png'
   };
 
 
@@ -377,20 +526,162 @@
     canvas.width = width;
     var data = context.createImageData(width, height);
 
+    var values = []
     for (var i = 0; i < width * height; i++) {
+      // level
+      data.data[i * 4 + 0] = getRegion(data, i, width, mountians) ? 2 : 0;
       // landscape
-      data.data[i * 4 + 0] = Math.floor(Math.random() * 3);
-      // terrain
       data.data[i * 4 + 1] = Math.floor(Math.random() * 2);
-      // terrain modifier
-      data.data[i * 4 + 2] = 0;
-      // water
-      data.data[i * 4 + 3] = 1;
+      // terrain
+      data.data[i * 4 + 2] = Math.floor(Math.random() * 2)
+      // terrain mask
+      data.data[i * 4 + 3] = 0;
+      setSurroundings(data, i, width, 3, true)
     }
     return data;
-    context.putImageData(data, 0, 0)
-    document.body.appendChild(canvas)
-    return canvas
+  }
+
+  var water = [
+    [12, 10, 8, 5],
+    [15, 17, 0, 3],
+    [14, 20, 0, 0],
+    [12, 21, 1, 0],
+    [14, 18, 5, 0],
+    [18, 17, 0, 3],
+    [17, 21, 0, 0],
+  ];
+
+  var mountians = [
+    [8, 14, 1, 1],
+    [8, 18, 0, 0]
+  ]
+
+  var getRegion = function(data, i, width, regions) {
+    var x = i % width
+    var y = Math.floor(i / width);
+    for (var pool, j = 0; pool = regions[j++];) {
+      if (x >= pool[0] && y >= pool[1] && x <= pool[0] + pool[2] && y <= pool[1] + pool[3]) {
+        return pool;
+        break;
+      }
+    }
+  }
+
+  var getOverlay = function() {
+    var canvas = document.createElement('canvas')
+    var context = canvas.getContext('2d');
+    var height = options.mapSize, width = options.mapSize;
+    canvas.height = height;
+    canvas.width = width;
+    var data = context.createImageData(width, height);
+
+    var values = []
+    for (var i = 0; i < width * height; i++) {
+      // cover
+      data.data[i * 4 + 0] = 0;
+      // cover mask
+      data.data[i * 4 + 1] = Math.floor(Math.random() * 2);
+      // water
+      data.data[i * 4 + 2] = getRegion(data, i, width, water) ? 1 : 0;
+      // water mask
+      setSurroundings(data, i, width, 3, true)
+    }
+    return data;
+  }
+
+  // patterns for auto-tiling
+  // matches tiles against transitions spritesheet
+  var surroundings = [
+    // 4 sides
+    [2 | 8 | 16 | 64, 9],
+    // 3 sides
+    [2 | 16 | 64, 21],
+    [8 | 16 | 64, 22],
+    [8 | 2 | 64, 23],
+    [8 | 16 | 2, 24],
+    // 2 sides + corner
+    [8 | 64 | 4, 17],
+    [8 | 2 | 128, 18],
+    [2 | 16 | 32, 19],
+    [1 | 64 | 16, 20],
+    // 2 sides
+    [64 | 8, 1],
+    [8 | 2, 3],
+    [2 | 16, 5],
+    [64 | 16, 7],
+    [2 | 64, 15],
+    [8 | 16, 16],
+    // 1 side
+    [8, 2],
+    [2, 4],
+    [16, 6],
+    [64, 8],
+    // 4 corners
+    [1 | 4 | 32 | 128, 43],
+    // 2 corners
+    [32 | 1, 33],
+    [1 | 4, 34],
+    [4 | 128, 35],
+    [32 | 128, 36],
+    [1 | 128, 37],
+    [32 | 4, 38],
+    // 3 corners
+    [32 | 1 | 128, 39],
+    [32 | 1 | 4, 40],
+    [1 | 4 | 128, 41],
+    [4 | 32 | 128, 42],
+    // 1 corner
+    [32, 11],
+    [1, 12],
+    [4, 13],
+    [128, 14],
+
+  ]
+
+
+  var getSurroundings = function(data, i, width, raw) {
+    var type = getTerrainType(data, i);
+    var result = 0;
+    if (getTerrainType(data, i - width - 1) < type)
+      result |= 1
+    if (getTerrainType(data, i - width) < type)
+      result |= 2
+    if (getTerrainType(data, i - width + 1) < type)
+      result |= 4
+    if (getTerrainType(data, i - 1) < type)
+      result |= 8
+    if (getTerrainType(data, i + 1) < type)
+      result |= 16
+    if (getTerrainType(data, i + width - 1) < type)
+      result |= 32
+    if (getTerrainType(data, i + width) < type)
+      result |= 64
+    if (getTerrainType(data, i + width + 1) < type)
+      result |= 128
+    if (raw)
+      return result;
+    if (result)
+      for (var i = 0, pattern; pattern = surroundings[i++];)
+        if ((result & pattern[0]) == pattern[0])
+          return pattern[1]
+    return 0;
+  }
+
+  var setSurroundings = function(data, i, width, offset, around) {
+    data.data[i * 4 + offset] = getSurroundings(data, i, width, false, offset);
+    if (!around) return;
+    setSurroundings(data, i - width - 1, width, offset)
+    setSurroundings(data, i - width, width, offset)
+    setSurroundings(data, i - width + 1, width, offset)
+    setSurroundings(data, i - 1, width, offset)
+    setSurroundings(data, i + 1, width, offset)
+    setSurroundings(data, i + width - 1, width, offset)
+    setSurroundings(data, i + width, width, offset)
+    setSurroundings(data, i + width + 1, width, offset)
+  }
+
+  var getTerrainType = function(data, i) {
+    return data.data[i * 4 + 2];
   }
 
   var obstructObject = function(data, i, row, cell) { 
@@ -477,25 +768,28 @@
     return data;
   }
 
+  var getCanvas = function(width, height) {
+    var canvas = document.createElement('canvas')
+    var context = canvas.getContext('2d');
+    canvas.height = height;
+    canvas.width = width;
+    return canvas;
+  }
+
   
 
   var getThings = function() {
-    var canvas = document.createElement('canvas')
-    var context = canvas.getContext('2d');
     var height = options.mapSize, width = options.mapSize;
-    canvas.height = height;
-    canvas.width = width;
+    var canvas = getCanvas(width, height)
     var data = context.createImageData(width, height);
 
-    var obstruction = document.createElement('canvas')
-    var obstructionContext = obstruction.getContext('2d');
-    obstruction.height = height;
-    obstruction.width = width;
+    var obstruction = getCanvas(width, height)
     var obstructionData = obstructionContext.createImageData(width, height);
+
 
     generateObject(data, obstructionData, 425, 2, 1, 0);
     //generateObject(data, obstructionData, 425 - 1, 2, 1, 0);
-    generateObject(data, obstructionData, 425 + 32 - 1, 2, 0, 0);
+    //generateObject(data, obstructionData, 686, 2, 0, 0);
     //generateObject(data, obstructionData, 425 + 32 + 1, 2, 2, 0);
     //generateObject(data, obstructionData, 425 + 32 -1, 2, 2, 1, 0);
     //generateObject(data, obstructionData, 53, 1, 1, 0);
@@ -503,12 +797,12 @@
     //generateObject(data, obstructionData, 38, 1, 1, 0);
     //return data;
     
-    for (var i = 0; i < width * height / 5 ; i++) {
-      for (var pos; pos = Math.floor(Math.random() * (options.mapSize * options.mapSize));)
-        if (!data.data[pos * 4 + 3])
-          break; 
-      generateObject(data, obstructionData, pos);
-    }
+    //for (var i = 0; i < width * height / 5 ; i++) {
+    //  for (var pos; pos = Math.floor(Math.random() * (options.mapSize * options//.mapSize));)
+    //    if (!data.data[pos * 4 + 3])
+    //      break; 
+    //  generateObject(data, obstructionData, pos);
+    //}
     context.putImageData(data, 0, 0)
     obstructionContext.putImageData(obstructionData, 0, 0)
     document.body.appendChild(canvas)
@@ -523,6 +817,7 @@
   //gl.enable(gl.DEPTH_TEST)
   var atlasImage, buffer;
   var mapImage = getMap();
+  var overlayImage = getOverlay()
   var things = getThings()
   var objectsImage = things.objects;
   var obstructionImage = things.obstruction;
@@ -531,6 +826,8 @@
   var i = 0;
   var mapTexture, atlasTexture
   var speedX = 1, speedY = 1;
+
+  console.error(mapImage.data[686 * 4 + 3], '~~')
 
   var depth = window.devicePixelRatio || 1;
   var view = true
@@ -562,12 +859,16 @@
       mapTexture = GL.Texture(gl, 0, mapImage, true)
       objectsTexture = GL.Texture(gl, 1, objectsImage, true);
       obstructionTexture = GL.Texture(gl, 2, obstructionImage, true)
+      overlayTexture = GL.Texture(gl, 3, overlayImage, true)
+      heightmapTexture = GL.Texture(gl, 4, heightmapImage, true)
       
 
       gl.uniform1i(map, 0);
       gl.uniform1i(objects, 1);
       gl.uniform1i(obstruction, 2);
-      var k = 2;
+      gl.uniform1i(overlay, 3);
+      gl.uniform1i(heightmap, 4);
+      var k = 4;
       for (var name in textures) {
         if (!textures[name].location)
           continue
