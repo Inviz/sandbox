@@ -312,12 +312,31 @@
     vec2 now = floor(tile * mapSize + shift);
     vec2 pos = now / mapSize;
     vec4 location = texture2D(subterrain, pos);
-    if ((color.a < location.r) || (color.r == 0.0 && color.g == 0.0 && color.b == 0.0)) {
+    float rating = location.r - 0.5;
+    float height = floor(rating * 128.0);
+    vec2 origin = (now + vec2(height, height) + vec2(1,1)) / mapSize;
+    float score = floor(rating * 128.0 + origin.y * 10000.0 + origin.x * 1000.0);
+    if (color.a == 0.0 || color.a < score) {
       vec4 result = getColor(texture, locals, position, grid, shift, translate);
       if (result.a > 0.0) {
-        result.a = location.r;
+        result.a = score;
         return result;
       }
+    }
+    return color;
+  }
+
+  vec4 getZObjectColor(vec2 locals, vec2 shift, float threshold, vec4 color) {
+    vec2 now = floor(tile * mapSize + shift);
+    vec2 pos = now / mapSize;
+    float score = 0.0;
+    if (threshold > 0.0) {
+      vec4 location = texture2D(terrain, pos);
+      score = floor((location.r - 0.5) * 128.0 + pos.y * 10000.0 + pos.x * 1000.0);
+    }
+    if (threshold <= score) {
+      vec4 result = getObjectColor(locals, shift);
+      return blend(result, color, 1.0);
     }
     return color;
   }
@@ -369,143 +388,122 @@
     vec4 color = vec4(0, 0, 0, 0);
     vec4 location = texture2D(obstruction, pos);
     vec4 obstruction = floor(location * 255.0);
-    if (obstruction.r == 0.0 && obstruction.g == 0.0 && obstruction.b == 0.0 && obstruction.a == 0.0)
-      return color;
+    vec4 subterrain = vec4(0,0,0,0);
+    float threshold = 0.0;
+    if (obstruction.a > 0.0) {
+      subterrain = getSubterrainColor(obstruction, locals, shift);
+      if (subterrain.a > 0.0) {
+        threshold = subterrain.a;
+        subterrain.a = 1.0;
+      }
+    }
 
     // 4th row
     if (obstruction.r >= 128.0) {
       obstruction.r -= 128.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(4, 4)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(4, 4), threshold, color);
     }
     if (obstruction.r >= 64.0) {
       obstruction.r -= 64.0; 
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(3, 4)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(3, 4), threshold, color);
     }
     if (obstruction.r >= 32.0) {
       obstruction.r -= 32.0; 
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(4, 3)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(4, 3), threshold, color);
     }
 
     // 3d row
     if (obstruction.r >= 16.0) {
       obstruction.r -= 16.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(2, 4)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(2, 4), threshold, color);
     }
     if (obstruction.r >= 8.0) {
       obstruction.r -= 8.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(3, 3)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(3, 3), threshold, color);
     }
     if (obstruction.r >= 4.0) {
       obstruction.r -= 4.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(4, 2)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(4, 2), threshold, color);
     }
     if (obstruction.r >= 2.0) {
       obstruction.r -= 2.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(1, 4)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(1, 4), threshold, color);
     }
     if (obstruction.r >= 1.0) {
       obstruction.r -= 1.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(2, 3)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(2, 3), threshold, color);
     }
     if (obstruction.g >= 128.0) {
       obstruction.g -= 128.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(3, 2)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(3, 2), threshold, color);
     }
     if (obstruction.g >= 64.0) {
       obstruction.g -= 64.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(4, 1)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(4, 1), threshold, color);
     }
 
 
     // 2nd row
     if (obstruction.g >= 32.0) {
       obstruction.g -= 32.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(0, 4)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(0, 4), threshold, color);
     }
     if (obstruction.g >= 16.0) {
       obstruction.g -= 16.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(1, 3)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(1, 3), threshold, color);
     }
     if (obstruction.g >= 8.0) {
       obstruction.g -= 8.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(2, 2)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(2, 2), threshold, color);
     }
     if (obstruction.g >= 4.0) {
       obstruction.g -= 4.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(3, 1)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(3, 1), threshold, color);
     }
     if (obstruction.g >= 2.0) {
       obstruction.g -= 2.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(4, 0)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(4, 0), threshold, color);
     }
     if (obstruction.g >= 1.0) {
       obstruction.g -= 1.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(0, 3)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(0, 3), threshold, color);
     }
     if (obstruction.b >= 128.0) {
       obstruction.b -= 128.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(1, 2)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(1, 2), threshold, color);
     }
 
     if (obstruction.b >= 64.0) {
       obstruction.b -= 64.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(2, 1)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(2, 1), threshold, color);
     }
     if (obstruction.b >= 32.0) {
       obstruction.b -= 32.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(3, 0)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(3, 0), threshold, color);
     }
 
     // 1st row
     if (obstruction.b >= 16.0) {
       obstruction.b -= 16.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(0, 2)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(0, 2), threshold, color);
     }
     if (obstruction.b >= 8.0) {
       obstruction.b -= 8.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(1, 1)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(1, 1), threshold, color);
     }
     if (obstruction.b >= 4.0) {
       obstruction.b -= 4.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(2, 0)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(2, 0), threshold, color);
     }
     if (obstruction.b >= 2.0) {
       obstruction.b -= 2.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(0, 1)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(0, 1), threshold, color);
     }
     if (obstruction.b >= 1.0) {
       obstruction.b -= 1.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(1, 0)), color, 1.0);
+      color = getZObjectColor(locals, shift + vec2(1, 0), threshold, color);
     }
-    if (obstruction.a > 0.0) {
-      vec4 subterrain = getSubterrainColor(obstruction, locals, shift);
-      if (subterrain.a > 0.0) {
-        subterrain.a = 1.0;
-      }
+    if (obstruction.a > 0.0 && color.a == 0.0) {
       color = blend(subterrain, color, 1.0);
     }
 
@@ -902,7 +900,7 @@
 
     generateObject(objects, obstruction, 425, 2, 1, 0);
     generateObject(objects, obstruction, 425 + 64 - 2, 2, 1, 0);
-    generateObject(objects, obstruction, 425 + 191, 2, 1, 0);
+    generateObject(objects, obstruction, 425 + 193, 2, 1, 0);
     
     //for (var i = 0; i < width * height / 5 ; i++) {
     //  for (var pos; pos = Math.floor(Math.random() * (options.mapSize * options//.mapSize));)
