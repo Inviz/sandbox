@@ -148,6 +148,7 @@
 
 
   uniform sampler2D terrain;
+  uniform sampler2D subterrain;
   uniform sampler2D overlay;
   uniform sampler2D obstruction;
   uniform sampler2D objects;
@@ -301,39 +302,32 @@
   vec4 blend(vec4 color, vec4 overlay, float mode) {
     if (color.a == 1.0)
       return color;
+    if (overlay.a == 0.0)
+      return color;
     mode = (mode - 1.0) / 100.0;
     return overlay;
   }
 
 
 
-  vec4 getObstructionColorChannelX(vec2 locals, vec2 shift, float row, float pos, float value, vec2 now, vec4 color) {
+  vec4 getObstructionColorChannelX(vec2 locals, vec2 shift, float row, float pos, float value) {
     float y = floor(mod(value - 1.0, 100.0) / 10.0);
-    if (y > 0.0) {
-      vec4 result = getObjectColor(locals, vec2(shift.x + row - pos, shift.y + row));
-      if (result.a > 0.0)
-        return blend(color, result, value);
-    }
-    return color;
+    if (y > 0.0)
+      return getObjectColor(locals, vec2(shift.x + row - pos, shift.y + row));
+    return vec4(0, 0, 0, 0);
   }
 
-  vec4 getObstructionColorChannelY(vec2 locals, vec2 shift, float row, float pos, float value, vec2 now, vec4 color) {
+  vec4 getObstructionColorChannelY(vec2 locals, vec2 shift, float row, float pos, float value) {
     float x = mod(value - 1.0, 10.0);
-    if (x >= pos) {
-      vec4 result = getObjectColor(locals, vec2(shift.x + row, shift.y + row - pos));
-      if (result.a > 0.0)
-        return blend(color, result, value);
-    }
-    return color;
+    if (x >= pos)
+      return getObjectColor(locals, vec2(shift.x + row, shift.y + row - pos));
+    return vec4(0, 0, 0, 0);
   }
 
-  vec4 getObstructionColorChannelC(vec2 locals, vec2 shift, float row, float value, vec2 now, vec4 color) {
+  vec4 getObstructionColorChannelC(vec2 locals, vec2 shift, float row, float value) {
     //if (now.x < mapSize.x - 1.0 && now.y < mapSize.y - 1.0) {
-      vec4 result = getObjectColor(locals, shift + row);
-      if (result.a > 0.0)
-        return blend(color, result, value);
+      return getObjectColor(locals, shift + row);
     //}
-    return color;
   }
 
   // obstruction map encodes offsets to neighbour tiles
@@ -344,69 +338,114 @@
   vec4 getObstructionColor(vec2 locals, vec2 shift) {
     vec2 now = floor(tile * mapSize + shift);
     vec2 pos = now / mapSize;
+    vec4 sub = floor(texture2D(subterrain, pos) * 255.0);
+    vec4 color = vec4(0, 0, 0, 0);
+    vec2 position = vec2(0, 0);
+    vec2 translate = vec2(0, 0);
+    vec2 grid = vec2(tileSize * 2.0, tileSize * 2.0);
+    float value = sub.r;
     vec4 location = texture2D(obstruction, pos);
     vec4 object = floor(location * 255.0);
-    vec4 color = vec4(0, 0, 0, 0);
-
-    if (object.a == 0.0)
+    if (object.a == 0.0 && value == 0.0)
       return color;
-
     // 4th row
     if (object.a > 0.0) {
-      color = getObstructionColorChannelC(locals, shift, 4.0, object.a, now, color);
-      color = getObstructionColorChannelY(locals, shift, 4.0, 1.0, object.a, now, color);
-      color = getObstructionColorChannelX(locals, shift, 4.0, 1.0, object.a, now, color);
+      if (color.a < 1.0)
+        color = blend(getObstructionColorChannelC(locals, shift, 4.0, object.a), color, 1.0);
+      if (color.a < 1.0)
+        color = blend(getObstructionColorChannelY(locals, shift, 4.0, 1.0, object.a), color, 1.0);
+      if (color.a < 1.0)
+        color = blend(getObstructionColorChannelX(locals, shift, 4.0, 1.0, object.a), color, 1.0);
     }
 
     // 3d row
-    if (object.a > 0.0)
-      color = getObstructionColorChannelY(locals, shift, 4.0, 2.0, object.a, now, color);
-    if (object.b > 0.0)
-      color = getObstructionColorChannelC(locals, shift, 3.0, object.b, now, color);
-    if (object.a > 0.0)
-      color = getObstructionColorChannelX(locals, shift, 4.0, 2.0, object.a, now, color);
-    if (object.a > 0.0)
-      color = getObstructionColorChannelY(locals, shift, 4.0, 3.0, object.a, now, color);
-    if (object.b > 0.0)
-      color = getObstructionColorChannelY(locals, shift, 3.0, 1.0, object.b, now, color);
-    if (object.b > 0.0)
-      color = getObstructionColorChannelX(locals, shift, 3.0, 1.0, object.b, now, color);
-    if (object.a > 0.0)
-      color = getObstructionColorChannelX(locals, shift, 4.0, 3.0, object.a, now, color);
+    if (object.a > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelY(locals, shift, 4.0, 2.0, object.a), color, 1.0);
+    if (object.b > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelC(locals, shift, 3.0, object.b), color, 1.0);
+    if (object.a > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelX(locals, shift, 4.0, 2.0, object.a), color, 1.0);
+    if (object.a > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelY(locals, shift, 4.0, 3.0, object.a), color, 1.0);
+    if (object.b > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelY(locals, shift, 3.0, 1.0, object.b), color, 1.0);
+    if (object.b > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelX(locals, shift, 3.0, 1.0, object.b), color, 1.0);
+    if (object.a > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelX(locals, shift, 4.0, 3.0, object.a), color, 1.0);
 
 
     // 2nd row
-    if (object.a > 0.0)
-      color = getObstructionColorChannelY(locals, shift, 4.0, 4.0, object.a, now, color);
-    if (object.b > 0.0)
-      color = getObstructionColorChannelY(locals, shift, 3.0, 2.0, object.b, now, color);
-    if (object.g > 0.0)
-      color = getObstructionColorChannelC(locals, shift, 2.0, object.g, now, color);
-    if (object.b > 0.0)
-      color = getObstructionColorChannelX(locals, shift, 3.0, 2.0, object.b, now, color);
-    if (object.a > 0.0)
-      color = getObstructionColorChannelX(locals, shift, 4.0, 4.0, object.a, now, color);
-    if (object.b > 0.0)
-      color = getObstructionColorChannelY(locals, shift, 3.0, 3.0, object.b, now, color);
-    if (object.g > 0.0)
-      color = getObstructionColorChannelY(locals, shift, 2.0, 1.0, object.g, now, color);
-    if (object.g > 0.0)
-      color = getObstructionColorChannelX(locals, shift, 2.0, 1.0, object.g, now, color);
-    if (object.b > 0.0)
-      color = getObstructionColorChannelX(locals, shift, 3.0, 3.0, object.b, now, color);
+    if (object.a > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelY(locals, shift, 4.0, 4.0, object.a), color, 1.0);
+    if (object.b > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelY(locals, shift, 3.0, 2.0, object.b), color, 1.0);
+    if (object.g > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelC(locals, shift, 2.0, object.g), color, 1.0);
+    if (object.b > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelX(locals, shift, 3.0, 2.0, object.b), color, 1.0);
+    if (object.a > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelX(locals, shift, 4.0, 4.0, object.a), color, 1.0);
+    if (object.b > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelY(locals, shift, 3.0, 3.0, object.b), color, 1.0);
+    if (object.g > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelY(locals, shift, 2.0, 1.0, object.g), color, 1.0);
+    if (object.g > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelX(locals, shift, 2.0, 1.0, object.g), color, 1.0);
+    if (object.b > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelX(locals, shift, 3.0, 3.0, object.b), color, 1.0);
 
 
     // 1st row
-    if (object.g > 0.0)
-      color = getObstructionColorChannelY(locals, shift, 2.0, 2.0, object.g, now, color);
-    if (object.r > 0.0)
-      color = getObstructionColorChannelC(locals, shift, 1.0, object.r, now, color);
-    if (object.g > 0.0)
-      color = getObstructionColorChannelX(locals, shift, 2.0, 2.0, object.g, now, color);
-    if (object.r > 0.0)
-      color = getObstructionColorChannelY(locals, shift, 1.0, 1.0, object.r, now, color);
-    if (object.r > 0.0)
-      color = getObstructionColorChannelX(locals, shift, 1.0, 1.0, object.r, now, color);
+    if (object.g > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelY(locals, shift, 2.0, 2.0, object.g), color, 1.0);
+    if (object.r > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelC(locals, shift, 1.0, object.r), color, 1.0);
+
+    if (object.g > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelX(locals, shift, 2.0, 2.0, object.g), color, 1.0);
+    if (object.r > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelY(locals, shift, 1.0, 1.0, object.r), color, 1.0);
+    
+    // subterrain
+    if (value >= 64.0) {
+      value -= 64.0;
+      if (color.a < 1.0)
+        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(2.0, 2.0), translate), color, 1.0);
+    }
+    if (value >= 32.0) {
+      value -= 32.0;
+      if (color.a < 1.0)
+        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(1.0, 2.0), translate), color, 1.0);
+    }
+    if (value >= 16.0) {
+      value -= 16.0;
+      if (color.a < 1.0)
+        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(2.0, 1.0), translate), color, 1.0);
+    }
+    if (value >= 8.0) {
+      value -= 8.0;
+      if (color.a < 1.0)
+        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(1.0, 1.0), translate), color, 1.0);
+    }
+    if (value >= 4.0) {
+      value -= 4.0;
+      if (color.a < 1.0)
+        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(0.0, 1.0), translate), color, 1.0);
+    }
+
+    if (object.r > 0.0 && color.a < 1.0)
+      color = blend(getObstructionColorChannelX(locals, shift, 1.0, 1.0, object.r), color, 1.0);
+
+    if (value >= 2.0) {
+      value -= 2.0;
+      if (color.a < 1.0)
+        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(1.0, 0.0), translate), color, 1.0);
+    }
+    if (value >= 1.0) {
+      if (color.a < 1.0)
+        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(0.0, 0.0), translate), color, 1.0);
+    }
 
 
     return color;
@@ -415,25 +454,18 @@
   void main() {
     vec2 locals = pixel - getTilePosition(tile);
     vec2 shift = vec2(0, 0);
-    vec4 obstructed = getObstructionColor(locals, shift);
-    if (obstructed.a > 0.0) {
-      gl_FragColor = obstructed;
-    } else {
-      vec4 object = getObjectColor(locals, shift);
-      if (object.a > 0.0) {
-        gl_FragColor =  object;
-      } else {
-        vec4 overlayed = getOverlayColor(locals, shift);
-        if (overlayed.a > 0.0) {
-          gl_FragColor = overlayed;
-        } else {
-          vec4 ground = getTerrainColor(locals, shift);
-          gl_FragColor = ground;
+    vec4 color = vec4(0,0,0,0);
+    color = blend(color, getObstructionColor(locals, shift), 1.0);
+    if (color.a < 1.0) {
+      color = blend(color, getObjectColor(locals, shift), 1.0);
+      if (color.a < 1.0) {
+        color = blend(color, getOverlayColor(locals, shift), 1.0);
+        if (color.a < 1.0) {
+          color = blend(color, getTerrainColor(locals, shift), 1.0);
         }
       }
     }
-    //if (gl_FragColor.a == 0.0)
-    //  gl_FragColor = vec4(tile, 0, 1);
+    gl_FragColor = color;
   }
 </script>
 
@@ -515,23 +547,52 @@
     }(name)
   }
 
-  var generateTerrain = function() {
-    var data = getImageData('terrain')
-    for (var i = 0, j = Math.pow(options.mapSize, 2); i < j; i++) {
-      // level
-      data.data[i * 4 + 0] = matchRegion(data, i, options.mapSize, mountians) ? 2 : 0;
-      // landscape
-      data.data[i * 4 + 1] = Math.floor(Math.random() * 2);
-      // terrain
-      data.data[i * 4 + 2] = Math.floor(Math.random() * 2)
-      // terrain mask
-      setPattern(data, i, options.mapSize, 3, true)
+  var markSubterrain = function(terrain, subterrain, i, pos, x, y, value) {
+    var shift = x + y * options.mapSize;
+    var target = pos - shift;
+    if ((subterrain.data[target * 4] & value) != value) {
+      subterrain.data[target * 4] += value;
+      subterrain.data[target * 4 + 1] = terrain.data[i * 4 + 1];
+      subterrain.data[target * 4 + 2] = terrain.data[i * 4 + 2];
+      subterrain.data[target * 4 + 3] = terrain.data[i * 4 + 3];
     }
-    return data;
+  }
+
+  var generateTerrainAndSubterrain = function() {
+    var terrain = getImageData('terrain');
+    var subterrain = getImageData('subterrain');
+    for (var i = 0, j = Math.pow(options.mapSize, 2); i < j; i++) {
+      // landscape
+      terrain.data[i * 4 + 1] = Math.floor(Math.random() * 2);
+      // terrain
+      terrain.data[i * 4 + 2] = Math.floor(Math.random() * 2)
+      // terrain mask
+      setPattern(terrain, i, options.mapSize, 3, true)
+      // level
+      if (Math.random() > 0.9 || matchRegion(terrain, i, options.mapSize, mountians)) {
+        var level = terrain.data[i * 4] = Math.floor(Math.random() * 3) * 2 + 2;
+        var height = location.search.indexOf('flat') > -1 ? 0 : Math.floor(level / 2) - 1;
+        for (var k = 0; k <= height; k++) {
+          var pos = i - k * options.mapSize - k;
+          markSubterrain(terrain, subterrain, i, pos, 0, 0, 1);
+          markSubterrain(terrain, subterrain, i, pos, 2, 2, 64);
+          markSubterrain(terrain, subterrain, i, pos, 1, 2, 32);
+          markSubterrain(terrain, subterrain, i, pos, 2, 1, 16);
+          markSubterrain(terrain, subterrain, i, pos, 1, 1, 8);
+          markSubterrain(terrain, subterrain, i, pos, 0, 1, 4);
+          markSubterrain(terrain, subterrain, i, pos, 1, 0, 2);
+        }
+      }
+    }
+    return {
+      terrain: terrain,
+      subterrain: subterrain
+    };
   }
 
   var water = [
     [12, 10, 8, 5],
+    //[21, 10, 0, 0],
     [15, 17, 0, 3],
     [14, 20, 0, 0],
     [12, 21, 1, 0],
@@ -542,7 +603,7 @@
 
   var mountians = [
     [8, 14, 1, 1],
-    [8, 18, 0, 0]
+    [10, 20, 0, 1]
   ]
 
   var matchRegion = function(data, i, width, regions) {
@@ -777,12 +838,14 @@
     getCanvas(name).getContext('2d').putImageData(data, 0, 0)
   }
 
-  var generateObjects = function() {
+  var generateObjectsAndObstruction = function() {
     var objects = getImageData('objects')
     var obstruction = getImageData('obstruction');
 
 
     generateObject(objects, obstruction, 425, 2, 1, 0);
+    generateObject(objects, obstruction, 425 + 64 - 2, 2, 1, 0);
+    generateObject(objects, obstruction, 425 + 191, 2, 1, 0);
     
     //for (var i = 0; i < width * height / 5 ; i++) {
     //  for (var pos; pos = Math.floor(Math.random() * (options.mapSize * options//.mapSize));)
@@ -799,14 +862,17 @@
   //gl.enable(gl.CULL_FACE);
   //gl.enable(gl.DEPTH_TEST)
   var buffer;
-  var terrainData = generateTerrain();
-  var subterrainData = getImageData('subterrain')
+  var objectsAndObstruction = generateObjectsAndObstruction()
+  var terrainAndSubterrain = generateTerrainAndSubterrain()
+
+  var terrainData = terrainAndSubterrain.terrain;
+  var subterrainData = terrainAndSubterrain.subterrain;
   var overlayData = generateOverlay()
-  var things = generateObjects()
-  var objectsData = things.objects;
-  var obstructionData = things.obstruction;
+  var objectsData = objectsAndObstruction.objects;
+  var obstructionData = objectsAndObstruction.obstruction;
 
   document.body.appendChild(getCanvas('terrain'));
+  document.body.appendChild(getCanvas('subterrain'));
   document.body.appendChild(getCanvas('objects'));
   document.body.appendChild(getCanvas('obstruction'));
   document.body.appendChild(getCanvas('overlay'));
