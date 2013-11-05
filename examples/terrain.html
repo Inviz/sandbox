@@ -308,28 +308,6 @@
     return overlay;
   }
 
-
-
-  vec4 getObstructionColorChannelX(vec2 locals, vec2 shift, float row, float pos, float value) {
-    float y = floor(mod(value - 1.0, 100.0) / 10.0);
-    if (y > 0.0)
-      return getObjectColor(locals, vec2(shift.x + row - pos, shift.y + row));
-    return vec4(0, 0, 0, 0);
-  }
-
-  vec4 getObstructionColorChannelY(vec2 locals, vec2 shift, float row, float pos, float value) {
-    float x = mod(value - 1.0, 10.0);
-    if (x >= pos)
-      return getObjectColor(locals, vec2(shift.x + row, shift.y + row - pos));
-    return vec4(0, 0, 0, 0);
-  }
-
-  vec4 getObstructionColorChannelC(vec2 locals, vec2 shift, float row, float value) {
-    //if (now.x < mapSize.x - 1.0 && now.y < mapSize.y - 1.0) {
-      return getObjectColor(locals, shift + row);
-    //}
-  }
-
   // obstruction map encodes offsets to neighbour tiles
   // that have sprites big enough to obstruct given pixel
 
@@ -343,108 +321,174 @@
     vec2 position = vec2(0, 0);
     vec2 translate = vec2(0, 0);
     vec2 grid = vec2(tileSize * 2.0, tileSize * 2.0);
-    float value = sub.r;
     vec4 location = texture2D(obstruction, pos);
-    vec4 object = floor(location * 255.0);
-    if (object.a == 0.0 && value == 0.0)
+    vec4 obstruction = floor(location * 255.0);
+    if (obstruction.r == 0.0 && obstruction.g == 0.0 && obstruction.b == 0.0 && obstruction.a == 0.0)
       return color;
     // 4th row
-    if (object.a > 0.0) {
+    if (obstruction.r >= 128.0) {
+      obstruction.r -= 128.0;
       if (color.a < 1.0)
-        color = blend(getObstructionColorChannelC(locals, shift, 4.0, object.a), color, 1.0);
+        color = blend(getObjectColor(locals, shift + vec2(4, 4)), color, 1.0);
+    }
+    if (obstruction.r >= 64.0) {
+      obstruction.r -= 64.0; 
       if (color.a < 1.0)
-        color = blend(getObstructionColorChannelY(locals, shift, 4.0, 1.0, object.a), color, 1.0);
+        color = blend(getObjectColor(locals, shift + vec2(3, 4)), color, 1.0);
+    }
+    if (obstruction.r >= 32.0) {
+      obstruction.r -= 32.0; 
       if (color.a < 1.0)
-        color = blend(getObstructionColorChannelX(locals, shift, 4.0, 1.0, object.a), color, 1.0);
+        color = blend(getObjectColor(locals, shift + vec2(4, 3)), color, 1.0);
     }
 
     // 3d row
-    if (object.a > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelY(locals, shift, 4.0, 2.0, object.a), color, 1.0);
-    if (object.b > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelC(locals, shift, 3.0, object.b), color, 1.0);
-    if (object.a > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelX(locals, shift, 4.0, 2.0, object.a), color, 1.0);
-    if (object.a > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelY(locals, shift, 4.0, 3.0, object.a), color, 1.0);
-    if (object.b > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelY(locals, shift, 3.0, 1.0, object.b), color, 1.0);
-    if (object.b > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelX(locals, shift, 3.0, 1.0, object.b), color, 1.0);
-    if (object.a > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelX(locals, shift, 4.0, 3.0, object.a), color, 1.0);
+    if (obstruction.r >= 16.0) {
+      obstruction.r -= 16.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(2, 4)), color, 1.0);
+    }
+    if (obstruction.r >= 8.0) {
+      obstruction.r -= 8.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(3, 3)), color, 1.0);
+    }
+    if (obstruction.r >= 4.0) {
+      obstruction.r -= 4.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(4, 2)), color, 1.0);
+    }
+    if (obstruction.r >= 2.0) {
+      obstruction.r -= 2.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(1, 4)), color, 1.0);
+    }
+    if (obstruction.r >= 1.0) {
+      obstruction.r -= 1.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(2, 3)), color, 1.0);
+    }
+    if (obstruction.g >= 128.0) {
+      obstruction.g -= 128.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(3, 2)), color, 1.0);
+    }
+    if (obstruction.g >= 64.0) {
+      obstruction.g -= 64.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(4, 1)), color, 1.0);
+    }
 
 
     // 2nd row
-    if (object.a > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelY(locals, shift, 4.0, 4.0, object.a), color, 1.0);
-    if (object.b > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelY(locals, shift, 3.0, 2.0, object.b), color, 1.0);
-    if (object.g > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelC(locals, shift, 2.0, object.g), color, 1.0);
-    if (object.b > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelX(locals, shift, 3.0, 2.0, object.b), color, 1.0);
-    if (object.a > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelX(locals, shift, 4.0, 4.0, object.a), color, 1.0);
-    if (object.b > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelY(locals, shift, 3.0, 3.0, object.b), color, 1.0);
-    if (object.g > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelY(locals, shift, 2.0, 1.0, object.g), color, 1.0);
-    if (object.g > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelX(locals, shift, 2.0, 1.0, object.g), color, 1.0);
-    if (object.b > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelX(locals, shift, 3.0, 3.0, object.b), color, 1.0);
-
+    if (obstruction.g >= 32.0) {
+      obstruction.g -= 32.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(0, 4)), color, 1.0);
+    }
+    if (obstruction.g >= 16.0) {
+      obstruction.g -= 16.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(1, 3)), color, 1.0);
+    }
+    if (obstruction.g >= 8.0) {
+      obstruction.g -= 8.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(2, 2)), color, 1.0);
+    }
+    if (obstruction.g >= 4.0) {
+      obstruction.g -= 4.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(3, 1)), color, 1.0);
+    }
+    if (obstruction.g >= 2.0) {
+      obstruction.g -= 2.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(4, 0)), color, 1.0);
+    }
+    if (obstruction.g >= 1.0) {
+      obstruction.g -= 1.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(0, 3)), color, 1.0);
+    }
+    if (obstruction.b >= 128.0) {
+      obstruction.b -= 128.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(1, 2)), color, 1.0);
+    }
+    
+    if (obstruction.b >= 64.0) {
+      obstruction.b -= 64.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(2, 1)), color, 1.0);
+    }
+    if (obstruction.b >= 32.0) {
+      obstruction.b -= 32.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(3, 0)), color, 1.0);
+    }
 
     // 1st row
-    if (object.g > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelY(locals, shift, 2.0, 2.0, object.g), color, 1.0);
-    if (object.r > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelC(locals, shift, 1.0, object.r), color, 1.0);
-
-    if (object.g > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelX(locals, shift, 2.0, 2.0, object.g), color, 1.0);
-    if (object.r > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelY(locals, shift, 1.0, 1.0, object.r), color, 1.0);
-    
+    if (obstruction.b >= 16.0) {
+      obstruction.b -= 16.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(0, 2)), color, 1.0);
+    }
+    if (obstruction.b >= 8.0) {
+      obstruction.b -= 8.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(1, 1)), color, 1.0);
+    }
+    if (obstruction.b >= 4.0) {
+      obstruction.b -= 4.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(2, 0)), color, 1.0);
+    }
+    if (obstruction.b >= 1.0) {
+      obstruction.b -= 1.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(1, 0)), color, 1.0);
+    }
     // subterrain
-    if (value >= 64.0) {
-      value -= 64.0;
+    if (obstruction.a >= 64.0) {
+      obstruction.a -= 64.0;
       if (color.a < 1.0)
-        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(2.0, 2.0), translate), color, 1.0);
+        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(2, 2), translate), color, 1.0);
     }
-    if (value >= 32.0) {
-      value -= 32.0;
+    if (obstruction.a >= 32.0) {
+      obstruction.a -= 32.0;
       if (color.a < 1.0)
-        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(1.0, 2.0), translate), color, 1.0);
+        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(1, 2), translate), color, 1.0);
     }
-    if (value >= 16.0) {
-      value -= 16.0;
+    if (obstruction.a >= 16.0) {
+      obstruction.a -= 16.0;
       if (color.a < 1.0)
-        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(2.0, 1.0), translate), color, 1.0);
+        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(2, 1), translate), color, 1.0);
     }
-    if (value >= 8.0) {
-      value -= 8.0;
+    if (obstruction.a >= 8.0) {
+      obstruction.a -= 8.0;
       if (color.a < 1.0)
-        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(1.0, 1.0), translate), color, 1.0);
+        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(1, 1), translate), color, 1.0);
     }
-    if (value >= 4.0) {
-      value -= 4.0;
+    if (obstruction.a >= 4.0) {
+      obstruction.a -= 4.0;
       if (color.a < 1.0)
-        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(0.0, 1.0), translate), color, 1.0);
+        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(0, 1), translate), color, 1.0);
     }
-
-    if (object.r > 0.0 && color.a < 1.0)
-      color = blend(getObstructionColorChannelX(locals, shift, 1.0, 1.0, object.r), color, 1.0);
-
-    if (value >= 2.0) {
-      value -= 2.0;
+    if (obstruction.a >= 2.0) {
+      obstruction.a -= 2.0;
       if (color.a < 1.0)
         color = blend(getColor(spritesLandscape, locals, position, grid, vec2(1.0, 0.0), translate), color, 1.0);
     }
-    if (value >= 1.0) {
+    if (obstruction.a >= 1.0) {
+      obstruction.a -= 1.0;
       if (color.a < 1.0)
         color = blend(getColor(spritesLandscape, locals, position, grid, vec2(0.0, 0.0), translate), color, 1.0);
+    }
+    if (obstruction.b >= 2.0) {
+      obstruction.b -= 2.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(0, 1)), color, 1.0);
     }
 
 
@@ -547,11 +591,14 @@
     }(name)
   }
 
-  var markSubterrain = function(terrain, subterrain, i, pos, x, y, value) {
+  var markSubterrain = function(terrain, subterrain, obstruction, i, pos, x, y, value) {
     var shift = x + y * options.mapSize;
     var target = pos - shift;
-    if ((subterrain.data[target * 4] & value) != value) {
-      subterrain.data[target * 4] += value;
+    var bitmask = obstruction.data[target * 4 + 3];
+    var result = bitmask | value;
+    if (result != bitmask) {
+      obstruction.data[target * 4 + 3] = result;
+      subterrain.data[target * 4 + 0] = terrain.data[i * 4 + 0];
       subterrain.data[target * 4 + 1] = terrain.data[i * 4 + 1];
       subterrain.data[target * 4 + 2] = terrain.data[i * 4 + 2];
       subterrain.data[target * 4 + 3] = terrain.data[i * 4 + 3];
@@ -561,6 +608,7 @@
   var generateTerrainAndSubterrain = function() {
     var terrain = getImageData('terrain');
     var subterrain = getImageData('subterrain');
+    var obstruction = getImageData('obstruction');
     for (var i = 0, j = Math.pow(options.mapSize, 2); i < j; i++) {
       // landscape
       terrain.data[i * 4 + 1] = Math.floor(Math.random() * 2);
@@ -574,13 +622,13 @@
         var height = location.search.indexOf('flat') > -1 ? 0 : Math.floor(level / 2) - 1;
         for (var k = 0; k <= height; k++) {
           var pos = i - k * options.mapSize - k;
-          markSubterrain(terrain, subterrain, i, pos, 0, 0, 1);
-          markSubterrain(terrain, subterrain, i, pos, 2, 2, 64);
-          markSubterrain(terrain, subterrain, i, pos, 1, 2, 32);
-          markSubterrain(terrain, subterrain, i, pos, 2, 1, 16);
-          markSubterrain(terrain, subterrain, i, pos, 1, 1, 8);
-          markSubterrain(terrain, subterrain, i, pos, 0, 1, 4);
-          markSubterrain(terrain, subterrain, i, pos, 1, 0, 2);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, 2, 2, 64);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, 1, 2, 32);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, 2, 1, 16);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, 1, 1, 8);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, 0, 1, 4);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, 1, 0, 2);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, 0, 0, 1);
         }
       }
     }
@@ -727,29 +775,10 @@
     return data.data[i * 4 + 2];
   }
 
-  var obstructObject = function(data, i, row, cell) { 
-    var x = i % options.mapSize;
-    var y = Math.floor(i / options.mapSize);
-    var offsetX = 0, offsetY = 0;
-    if (cell > 0) {
-      offsetX = cell;
-    } else {
-      offsetY = - cell;
-    }
-    x = x - row + offsetY;
-    y = y - row + offsetX;
-    if (x < 0 || y < 0 || x >= options.mapSize || y >= options.mapSize)
-      return;
-    var pos = ((y * options.mapSize) + x) * 4;
-    var d = data.data;
-    var channel = row - 1;
-    var old = Math.max(0, d[pos + channel] - 1);
-    var oY = Math.floor((old % 100) / 10);
-    var oX = old % 10;
-    var value = Math.max(oY, offsetY) * 10 + Math.max(oX, offsetX);
-    d[pos + channel] = value + 1;
-    if (d[pos + 3] == 0)
-      d[pos + 3] = 255; // set some alpha
+  var obstructObject = function(obstruction, i, x, y, channel, value) { 
+    var shift = ((y * options.mapSize) + x);
+    var pos = (i - shift) * 4;
+    obstruction.data[pos + channel] |= value
   }
   var generateObject = function(data, obstruction, i, size, x, y) {
     if (size == null)
@@ -758,52 +787,54 @@
       case 0:
         data.data[i * 4 + 0] = Math.floor(Math.random() * 9);
         data.data[i * 4 + 1] = Math.floor(Math.random() * 2);
-        obstructObject(obstruction, i, 1, -1);
-        obstructObject(obstruction, i, 1,  0);
-        obstructObject(obstruction, i, 1,  1);
+        obstructObject(obstruction, i, 1, 1, 2, 8);
+        obstructObject(obstruction, i, 0, 1, 2, 2);
+        obstructObject(obstruction, i, 1, 0, 2, 1);
 
         break;
       case 1:
         data.data[i * 4 + 0] = (x != null ? x : Math.floor(Math.random() * 6)) + 100;
         data.data[i * 4 + 1] = y != null ? y : Math.floor(Math.random() * 1);
-        obstructObject(obstruction, i, 1, -1);
-        obstructObject(obstruction, i, 1,  0);
-        obstructObject(obstruction, i, 1,  1);
-        obstructObject(obstruction, i, 2, -1);
-        obstructObject(obstruction, i, 2,  0);
-        obstructObject(obstruction, i, 2,  1);
-        obstructObject(obstruction, i, 3, -1);
-        obstructObject(obstruction, i, 3,  0);
-        obstructObject(obstruction, i, 3,  1);
-        obstructObject(obstruction, i, 4, -1);
-        obstructObject(obstruction, i, 4,  0);
-        obstructObject(obstruction, i, 4,  1);
+        obstructObject(obstruction, i, 4, 4, 0, 128);
+        obstructObject(obstruction, i, 3, 4, 0, 64);
+        obstructObject(obstruction, i, 4, 3, 0, 32);
+        obstructObject(obstruction, i, 3, 3, 0, 8);
+        obstructObject(obstruction, i, 2, 3, 0, 1);
+        obstructObject(obstruction, i, 3, 2, 1, 128);
+        obstructObject(obstruction, i, 2, 2, 1, 8);
+        obstructObject(obstruction, i, 1, 2, 2, 128);
+        obstructObject(obstruction, i, 2, 1, 2, 64);
+        obstructObject(obstruction, i, 1, 1, 2, 8);
+        obstructObject(obstruction, i, 0, 1, 2, 2);
+        obstructObject(obstruction, i, 1, 0, 2, 1);
         break;
       case 2:
         data.data[i * 4 + 0] = (x != null ? x : Math.floor(Math.random() * 2)) + 200;
         data.data[i * 4 + 1] = y != null ? y : Math.floor(Math.random() * 1);
-        obstructObject(obstruction, i, 1, -1);
-        obstructObject(obstruction, i, 1,  0);
-        obstructObject(obstruction, i, 1,  1);
-        obstructObject(obstruction, i, 2, -2);
-        obstructObject(obstruction, i, 2, -1);
-        obstructObject(obstruction, i, 2,  0);
-        obstructObject(obstruction, i, 2,  1);
-        obstructObject(obstruction, i, 2,  2);
-        obstructObject(obstruction, i, 3, -3);
-        obstructObject(obstruction, i, 3, -2);
-        obstructObject(obstruction, i, 3, -1);
-        obstructObject(obstruction, i, 3,  0);
-        obstructObject(obstruction, i, 3,  1);
-        obstructObject(obstruction, i, 3,  2);
-        obstructObject(obstruction, i, 3,  3);
-        obstructObject(obstruction, i, 4, -3);
-        obstructObject(obstruction, i, 4, -2);
-        obstructObject(obstruction, i, 4, -1);
-        obstructObject(obstruction, i, 4,  0);
-        obstructObject(obstruction, i, 4,  1);
-        obstructObject(obstruction, i, 4,  2);
-        obstructObject(obstruction, i, 4,  3);
+        obstructObject(obstruction, i, 4, 4, 0, 128);
+        obstructObject(obstruction, i, 3, 4, 0, 64);
+        obstructObject(obstruction, i, 4, 3, 0, 32);
+        obstructObject(obstruction, i, 2, 4, 0, 16);
+        obstructObject(obstruction, i, 3, 3, 0, 8);
+        obstructObject(obstruction, i, 4, 2, 0, 4);
+        obstructObject(obstruction, i, 1, 4, 0, 2);
+        obstructObject(obstruction, i, 2, 3, 0, 1);
+        obstructObject(obstruction, i, 3, 2, 1, 128);
+        obstructObject(obstruction, i, 4, 1, 1, 64);
+        obstructObject(obstruction, i, 0, 4, 1, 32);
+        obstructObject(obstruction, i, 1, 3, 1, 16);
+        obstructObject(obstruction, i, 2, 2, 1, 8);
+        obstructObject(obstruction, i, 3, 1, 1, 4);
+        obstructObject(obstruction, i, 4, 0, 1, 2);
+        obstructObject(obstruction, i, 0, 3, 1, 1);
+        obstructObject(obstruction, i, 1, 2, 2, 128);
+        obstructObject(obstruction, i, 2, 1, 2, 64);
+        obstructObject(obstruction, i, 3, 0, 2, 32);
+        obstructObject(obstruction, i, 0, 2, 2, 16);
+        obstructObject(obstruction, i, 1, 1, 2, 8);
+        obstructObject(obstruction, i, 2, 0, 2, 4);
+        obstructObject(obstruction, i, 0, 1, 2, 2);
+        obstructObject(obstruction, i, 1, 0, 2, 1);
         break;
     }
     data.data[i * 4 + 3] = 255;
