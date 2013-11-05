@@ -299,13 +299,63 @@
     return vec4(0, 0, 0, 0);
   }
 
-  vec4 blend(vec4 color, vec4 overlay, float mode) {
+  vec4 blend(vec4 overlay, vec4 color, float mode) {
     if (color.a == 1.0)
       return color;
     if (overlay.a == 0.0)
       return color;
     mode = (mode - 1.0) / 100.0;
     return overlay;
+  }
+
+  vec4 getZColor(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift, vec2 translate, vec4 color) {
+    vec2 now = floor(tile * mapSize + shift);
+    vec2 pos = now / mapSize;
+    vec4 location = texture2D(subterrain, pos);
+    if ((color.a < location.r) || (color.r == 0.0 && color.g == 0.0 && color.b == 0.0)) {
+      vec4 result = getColor(texture, locals, position, grid, shift, translate);
+      if (result.a > 0.0) {
+        result.a = location.r;
+        return result;
+      }
+    }
+    return color;
+  }
+
+  vec4 getSubterrainColor(vec4 obstruction, vec2 locals, vec2 shift) {
+    vec4 color = vec4(0, 0, 0, 0);
+    vec2 position = vec2(0, 0);
+    vec2 translate = vec2(0, 0);
+    vec2 grid = vec2(tileSize * 2.0, tileSize * 2.0);
+    if (obstruction.a >= 64.0) {
+      obstruction.a -= 64.0;
+      color = getZColor(spritesLandscape, locals, position, grid, vec2(2, 2), translate, color);
+    }
+    if (obstruction.a >= 32.0) {
+      obstruction.a -= 32.0;
+      color = getZColor(spritesLandscape, locals, position, grid, vec2(1, 2), translate, color);
+    }
+    if (obstruction.a >= 16.0) {
+      obstruction.a -= 16.0;
+      color = getZColor(spritesLandscape, locals, position, grid, vec2(2, 1), translate, color);
+    }
+    if (obstruction.a >= 8.0) {
+      obstruction.a -= 8.0;
+      color = getZColor(spritesLandscape, locals, position, grid, vec2(1, 1), translate, color);
+    }
+    if (obstruction.a >= 4.0) {
+      obstruction.a -= 4.0;
+      color = getZColor(spritesLandscape, locals, position, grid, vec2(0, 1), translate, color);
+    }
+    if (obstruction.a >= 2.0) {
+      obstruction.a -= 2.0;
+      color = getZColor(spritesLandscape, locals, position, grid, vec2(1.0, 0.0), translate, color);
+    }
+    if (obstruction.a >= 1.0) {
+      obstruction.a -= 1.0;
+      color = getZColor(spritesLandscape, locals, position, grid, vec2(0.0, 0.0), translate, color);
+    }
+    return color;
   }
 
   // obstruction map encodes offsets to neighbour tiles
@@ -316,15 +366,12 @@
   vec4 getObstructionColor(vec2 locals, vec2 shift) {
     vec2 now = floor(tile * mapSize + shift);
     vec2 pos = now / mapSize;
-    vec4 sub = floor(texture2D(subterrain, pos) * 255.0);
     vec4 color = vec4(0, 0, 0, 0);
-    vec2 position = vec2(0, 0);
-    vec2 translate = vec2(0, 0);
-    vec2 grid = vec2(tileSize * 2.0, tileSize * 2.0);
     vec4 location = texture2D(obstruction, pos);
     vec4 obstruction = floor(location * 255.0);
     if (obstruction.r == 0.0 && obstruction.g == 0.0 && obstruction.b == 0.0 && obstruction.a == 0.0)
       return color;
+
     // 4th row
     if (obstruction.r >= 128.0) {
       obstruction.r -= 128.0;
@@ -416,7 +463,7 @@
       if (color.a < 1.0)
         color = blend(getObjectColor(locals, shift + vec2(1, 2)), color, 1.0);
     }
-    
+
     if (obstruction.b >= 64.0) {
       obstruction.b -= 64.0;
       if (color.a < 1.0)
@@ -444,51 +491,22 @@
       if (color.a < 1.0)
         color = blend(getObjectColor(locals, shift + vec2(2, 0)), color, 1.0);
     }
+    if (obstruction.b >= 2.0) {
+      obstruction.b -= 2.0;
+      if (color.a < 1.0)
+        color = blend(getObjectColor(locals, shift + vec2(0, 1)), color, 1.0);
+    }
     if (obstruction.b >= 1.0) {
       obstruction.b -= 1.0;
       if (color.a < 1.0)
         color = blend(getObjectColor(locals, shift + vec2(1, 0)), color, 1.0);
     }
-    // subterrain
-    if (obstruction.a >= 64.0) {
-      obstruction.a -= 64.0;
-      if (color.a < 1.0)
-        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(2, 2), translate), color, 1.0);
-    }
-    if (obstruction.a >= 32.0) {
-      obstruction.a -= 32.0;
-      if (color.a < 1.0)
-        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(1, 2), translate), color, 1.0);
-    }
-    if (obstruction.a >= 16.0) {
-      obstruction.a -= 16.0;
-      if (color.a < 1.0)
-        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(2, 1), translate), color, 1.0);
-    }
-    if (obstruction.a >= 8.0) {
-      obstruction.a -= 8.0;
-      if (color.a < 1.0)
-        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(1, 1), translate), color, 1.0);
-    }
-    if (obstruction.a >= 4.0) {
-      obstruction.a -= 4.0;
-      if (color.a < 1.0)
-        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(0, 1), translate), color, 1.0);
-    }
-    if (obstruction.a >= 2.0) {
-      obstruction.a -= 2.0;
-      if (color.a < 1.0)
-        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(1.0, 0.0), translate), color, 1.0);
-    }
-    if (obstruction.a >= 1.0) {
-      obstruction.a -= 1.0;
-      if (color.a < 1.0)
-        color = blend(getColor(spritesLandscape, locals, position, grid, vec2(0.0, 0.0), translate), color, 1.0);
-    }
-    if (obstruction.b >= 2.0) {
-      obstruction.b -= 2.0;
-      if (color.a < 1.0)
-        color = blend(getObjectColor(locals, shift + vec2(0, 1)), color, 1.0);
+    if (obstruction.a > 0.0) {
+      vec4 subterrain = getSubterrainColor(obstruction, locals, shift);
+      if (subterrain.a > 0.0) {
+        subterrain.a = 1.0;
+      }
+      color = blend(subterrain, color, 1.0);
     }
 
 
@@ -522,6 +540,8 @@
   };
   var seed = parseFloat(location.search.split('seed=')[1]) || Math.random();
   
+  Math.seedrandom(seed)
+  var random2 = Math.random;
   Math.seedrandom(seed)
 
   var canvas    = document.getElementById('canvas');
@@ -591,17 +611,18 @@
     }(name)
   }
 
-  var markSubterrain = function(terrain, subterrain, obstruction, i, pos, x, y, value) {
+  var markSubterrain = function(terrain, subterrain, obstruction, i, pos, diff, x, y, value) {
     var shift = x + y * options.mapSize;
     var target = pos - shift;
     var bitmask = obstruction.data[target * 4 + 3];
     var result = bitmask | value;
-    if (result != bitmask) {
-      obstruction.data[target * 4 + 3] = result;
-      subterrain.data[target * 4 + 0] = terrain.data[i * 4 + 0];
-      subterrain.data[target * 4 + 1] = terrain.data[i * 4 + 1];
-      subterrain.data[target * 4 + 2] = terrain.data[i * 4 + 2];
-      subterrain.data[target * 4 + 3] = terrain.data[i * 4 + 3];
+    var alpha = terrain.data[i * 4] - diff * 2;
+    obstruction.data[target * 4 + 3] = result;
+    if (alpha > subterrain.data[pos * 4]) {
+      subterrain.data[pos * 4 + 0] = alpha;
+      subterrain.data[pos * 4 + 1] = terrain.data[i * 4 + 1];
+      subterrain.data[pos * 4 + 2] = terrain.data[i * 4 + 2];
+      subterrain.data[pos * 4 + 3] = terrain.data[i * 4 + 3];
     }
   }
 
@@ -617,18 +638,23 @@
       // terrain mask
       setPattern(terrain, i, options.mapSize, 3, true)
       // level
+      terrain.data[i * 4] = 127;
       if (Math.random() > 0.9 || matchRegion(terrain, i, options.mapSize, mountians)) {
-        var level = terrain.data[i * 4] = Math.floor(Math.random() * 3) * 2 + 2;
-        var height = location.search.indexOf('flat') > -1 ? 0 : Math.floor(level / 2) - 1;
+        if (location.search.indexOf('flat') > -1)
+          var height = 0;
+        else
+          var height = Math.floor(random2() * 4);
+        terrain.data[i * 4] += height * 2;
         for (var k = 0; k <= height; k++) {
           var pos = i - k * options.mapSize - k;
-          markSubterrain(terrain, subterrain, obstruction, i, pos, 2, 2, 64);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, 1, 2, 32);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, 2, 1, 16);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, 1, 1, 8);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, 0, 1, 4);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, 1, 0, 2);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, 0, 0, 1);
+          var diff = height - k;
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 2, 2, 64);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 2, 32);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 2, 1, 16);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 1, 8);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 0, 1, 4);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 0, 2);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 0, 0, 1);
         }
       }
     }
@@ -650,8 +676,8 @@
   ];
 
   var mountians = [
-    [8, 14, 1, 1],
-    [10, 20, 0, 1]
+    //[8, 14, 1, 1],
+    //[10, 20, 0, 1]
   ]
 
   var matchRegion = function(data, i, width, regions) {
