@@ -26,7 +26,10 @@
 <script src="lib/gl-matrix/common.js"></script>
 <script src="lib/gl-matrix/mat4.js"></script>
 <script src="lib/gl-matrix/vec3.js"></script>
-
+<script>
+// fps
+eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)%3Bscript.src%3D%27http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js%27%3Bdocument.body.appendChild(script)%3Bscript%3Ddocument.createElement(%27script%27)%3Bscript.innerHTML%3D%27var%20interval%3DsetInterval(function()%7Bif(typeof%20Stats%3D%3D%5C%27function%5C%27)%7BclearInterval(interval)%3Bvar%20stats%3Dnew%20Stats()%3Bstats.domElement.style.position%3D%5C%27fixed%5C%27%3Bstats.domElement.style.left%3D%5C%270px%5C%27%3Bstats.domElement.style.top%3D%5C%270px%5C%27%3Bstats.domElement.style.zIndex%3D%5C%2710000%5C%27%3Bdocument.body.appendChild(stats.domElement)%3BsetInterval(function()%7Bstats.update()%3B%7D,1000/60)%3B%7D%7D,100)%3B%27%3Bdocument.body.appendChild(script)%3B%7D)()%3B"))
+</script>
 <style>
 
   body, html {
@@ -195,7 +198,7 @@
 
   // get color of a mask pixel
   // also composes any combination of corners from separate corner sprites
-  vec4 getMaskedColor(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift, vec2 translate) {
+  vec4 getTransitionColor(vec2 locals, vec2 position, vec2 shift, vec2 translate) {
     vec2 coordinates = (tile * mapSize - floor(tile * mapSize));
     float x = position.x;
     float sprite = 0.0;
@@ -231,46 +234,169 @@
       }
     }
     position.x = x - 1.0;
+    vec2 grid = vec2(tileSize * 2.0, tileSize);
     return getColor(spritesTransitions, locals, position, grid, vec2(0, 0), translate);
   }
 
-  // get color modified by mask
-  vec4 getDependentColor(sampler2D data, vec2 locals, vec2 grid, vec2 shift, vec2 translate, float fallback) {
-    vec2 coordinates = (tile * mapSize - floor(tile * mapSize));
+  vec2 getCoordinates() {
+    return (tile * mapSize - floor(tile * mapSize));
+  }
+
+  vec2 getPosition(vec2 shift) {
+    return ((tile * mapSize) + shift) / mapSize;
+  }
+
+  float getVariation(vec2 position, float seed) {
+    return (snoise(floor(position * mapSize * seed)) + 1.0) / 2.0;
+  }
+  float getRandom(vec2 position, float range, float seed) {
+    return floor(getVariation(position, seed) * range);
+  }
+
+  vec2 getTranslation(vec2 shift) {
+    vec2 coordinates = getCoordinates();
+    vec2 translate = vec2(0,0);
     float pixel = 1.0 - 1.0 / tileSize;
     if ((coordinates.x > pixel && coordinates.y >  1.0 / tileSize / 2.0) 
     || (coordinates.y > pixel && coordinates.x > 1.0 / tileSize / 2.0) )
       translate.y -= 1.0;
 
-    vec2 pos = floor(tile * mapSize + shift) / mapSize;
-    vec4 location = texture2D(data, pos);
-    float variation = floor((snoise(floor(tile * mapSize)) + 1.0) / 2.0 * 4.0);
-    if (location.a > 0.0) {
-      vec2 maskposition = vec2(floor(location.a * 255.0), fallback);
-      vec4 masked = getMaskedColor(spritesTransitions, locals, maskposition, grid, vec2(0, 0), translate);
-      if (fallback == 0.0) {
-        if (!(masked.r == 0.0 && masked.g == 0.0 && masked.b == 0.0 && masked.a == 1.0))
-          return masked;
-      } else {
-        if (masked.a == 0.0)
-          return getColor(spritesTerrain, locals, vec2(variation, 0), grid, shift, translate);
-      }
-    }
-    vec2 position = vec2(variation, floor(location.b * 255.0));
-    if (fallback == 0.0)
-      if (location.b == 0.0)
-        return vec4(0, 0, 0, 0);
-      else
-        position.y += 1.0;
-    return getColor(spritesTerrain, locals, position, grid, shift, translate);
+
+    return translate;
   }
 
+  vec4 getBestCorner(vec2 pos, float threshold, float variation, vec2 first, vec2 second, vec2 third) {
+    vec4 result = vec4(0,0,0,0);
+    float results = 0.0;
+    vec4 a = result;
+    vec4 b = result;
+    vec4 c = result;
+    vec4 corner = floor(texture2D(terrain, pos + first / mapSize) * 255.0);
+    if (corner.b < threshold) {
+      a = corner;
+      results++;
+    }
+    corner = floor(texture2D(terrain, pos + second / mapSize) * 255.0);
+    if (corner.b < threshold) {
+      if (results == 1.0)
+        b = corner;
+      else
+        a = corner;
+      results++;
+    }
+    corner = floor(texture2D(terrain, pos + third / mapSize) * 255.0);
+    if (corner.b < threshold) {
+      if (results == 2.0)
+        c = corner;
+      if (results == 1.0)
+        b = corner;
+      else
+        a = corner;
+      results++;
+    }
+    if (results > 0.0) {
+      float choice = floor(results * (variation));
+      if (choice == 2.0)
+        result = c;
+      else if (choice == 1.0)
+        result = b;
+      else
+        result = a;
+    }
+    return result;
+  }
+
+  vec4 getCorner(vec2 locals, vec2 shift, vec2 translate, float threshold) {
+    vec2 coordinates = getCoordinates();
+    vec2 now = floor(tile * mapSize + shift);
+    float variation = getVariation(floor(now + coordinates * tileSize), 1.0);
+    float halfSize = tileSize / 2.0;
+    float thirdSize = tileSize / 1.5;
+    float sixthSize = tileSize / 3.0;
+    vec2 pos = now / mapSize;
+    if (coordinates.x < 1.0 / 3.0 && coordinates.y < 1.0 / 3.0) {
+      vec4 corner = getBestCorner(pos, threshold, variation, vec2(-1, -1), vec2(-1, 0), vec2(0, -1));
+      if (corner.b > 0.0)
+        return corner;
+    }
+    if (coordinates.x > 2.0 / 3.0 && coordinates.y < 1.0 / 3.0) {
+      vec4 corner = getBestCorner(pos, threshold, variation, vec2(1, -1), vec2(0, -1), vec2(1,0));
+      if (corner.b > 0.0)
+        return corner;
+    }
+    if (coordinates.x > 2.0 / 3.0 && coordinates.y > 2.0 / 3.0) {
+      vec4 corner = getBestCorner(pos, threshold, variation, vec2(1, 1), vec2(1, 0), vec2(0, 1));
+      if (corner.b > 0.0)
+        return corner;
+    }
+    if (coordinates.x < 1.0 / 3.0 && coordinates.y > 2.0 / 3.0) {
+      vec4 corner = getBestCorner(pos, threshold, variation, vec2(-1, 1), vec2(-1, 0), vec2(0, 1));
+      if (corner.b > 0.0)
+        return corner;
+    }
+    if (coordinates.x < 1.0 / 2.0 && coordinates.y < 1.0 / 2.0) {
+      vec4 corner = getBestCorner(pos, threshold, variation, vec2(-1, 0), vec2(-1, 0), vec2(-1, -1));
+      if (corner.b > 0.0)
+        return corner;
+    }
+    if (coordinates.x > 1.0 / 2.0 && coordinates.y < 1.0 / 2.0){
+      vec4 corner = getBestCorner(pos, threshold, variation, vec2(0, -1), vec2(1, 0), vec2(1, -1));
+      if (corner.b > 0.0)
+        return corner;
+    }
+    if (coordinates.x > 1.0 / 2.0 && coordinates.y > 1.0 / 2.0){
+      vec4 corner = getBestCorner(pos, threshold, variation, vec2(1, 0), vec2(0, 1), vec2(1, 1));
+      if (corner.b > 0.0)
+        return corner;
+    }
+    if (coordinates.x < 1.0 / 2.0 && coordinates.y > 1.0 / 2.0) {
+      vec4 corner = getBestCorner(pos, threshold, variation, vec2(0, 1), vec2(-1, 0), vec2(-1, 1));
+      if (corner.b > 0.0)
+        return corner;
+    }
+    /**/
+    return vec4(0,0,0,0);
+  }
+
+
   vec4 getTerrainColor(vec2 locals, vec2 shift) {
-    return getDependentColor(terrain, locals, vec2(tileSize * 2.0, tileSize), shift, vec2(0, 0), 1.0);
+    vec2 position = getPosition(shift);
+    vec4 location = floor(texture2D(terrain, position) * 255.0);
+    vec2 translate = getTranslation(shift);
+    vec2 grid = vec2(tileSize * 2.0, tileSize);
+    vec2 here = vec2(0, 0);
+    float variation = getRandom(position, 4.0, 1.0);
+    if (location.a > 0.0) {
+      vec2 mask = vec2(location.a, 1);
+      vec4 masked = getTransitionColor(locals, mask, here, translate);
+      if (masked.a == 0.0) {
+        vec4 corner = getCorner(locals, shift, translate, location.b);
+        if (corner.b > 0.0) {
+          return getColor(spritesTerrain, locals, vec2(variation, corner.b - 1.0), grid, vec2(0,0), translate);
+        }
+        //return vec4(0,0,0,0);
+      }
+    }
+    vec2 terrain = vec2(variation, location.b - 1.0);
+    return getColor(spritesTerrain, locals, terrain, grid, vec2(0, 0), translate);
   }
 
   vec4 getOverlayColor(vec2 locals, vec2 shift) {
-    return getDependentColor(overlay, locals, vec2(tileSize * 2.0, tileSize), shift, vec2(0, 0), 0.0);
+    vec2 position = getPosition(shift);
+    vec4 location = floor(texture2D(overlay, position) * 255.0);
+    vec2 translate = getTranslation(shift);
+    if (location.b == 0.0)
+      return vec4(0, 0, 0, 0);
+    if (location.a > 0.0) {
+      vec2 mask = vec2(location.a, 0);
+      vec4 masked = getTransitionColor(locals, mask, vec2(0, 0), translate);
+      if (!(masked.r == 0.0 && masked.g == 0.0 && masked.b == 0.0 && masked.a == 1.0))
+        return masked;
+    }
+    float variation = getRandom(shift, 4.0, 1.0);
+    vec2 terrain = vec2(variation, 4.0);
+    vec2 grid = vec2(tileSize * 2.0, tileSize);
+    return getColor(spritesTerrain, locals, terrain, grid, vec2(0, 0), translate);
   }
 
   vec4 getObjectColor(vec2 locals, vec2 shift) {
@@ -286,7 +412,7 @@
       if (object.x >= 200.0) {
         vec2 grid192x160 = vec2(tileSize * 6.0, tileSize * 5.0);
         object.x -= 200.0;
-        return getColor(sprites192x160, locals, object.xy , grid192x160, shift, translate);
+        return getColor(sprites192x160, locals, object.xy, grid192x160, shift, translate);
       } else if (object.x >= 100.0) {
         object.x -= 100.0;
         vec2 grid64x160 = vec2(tileSize * 2.0, tileSize * 5.0);
@@ -304,18 +430,29 @@
       return color;
     if (overlay.a == 0.0)
       return color;
-    mode = (mode - 1.0) / 100.0;
-    return overlay;
+
+    overlay.a *= mode;
+    overlay.rgb *= overlay.a;
+    color.rgb *= color.a;
+    vec3 blended = overlay.rgb + ((1.0-overlay.a)*color.rgb);
+    float alpha = color.a + (1.0-color.a)*overlay.a;
+    return vec4(blended, 1);
   }
 
-  vec4 getZColor(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift, vec2 translate, vec4 color) {
+  float getZValue(vec2 shift, float heighted) {
     vec2 now = floor(tile * mapSize + shift);
     vec2 pos = now / mapSize;
     vec4 location = texture2D(subterrain, pos);
     float rating = location.r - 0.5;
     float height = floor(rating * 128.0);
-    vec2 origin = (now + vec2(height, height) + vec2(1,1)) / mapSize;
-    float score = floor(rating * 128.0 + origin.y * 10000.0 + origin.x * 1000.0);
+    if (heighted > 0.0)
+      now += vec2(height, height) + vec2(1,1);
+    vec2 origin = now / mapSize;
+    return location.r + floor((origin.y * mapSize.y + origin.x) * mapSize.x * mapSize.y);
+  }
+
+  vec4 getZColor(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift, vec2 translate, vec4 color) {
+    float score = getZValue(shift, 1.0);
     if (color.a == 0.0 || color.a < score) {
       vec4 result = getColor(texture, locals, position, grid, shift, translate);
       if (result.a > 0.0) {
@@ -327,13 +464,9 @@
   }
 
   vec4 getZObjectColor(vec2 locals, vec2 shift, float threshold, vec4 color) {
-    vec2 now = floor(tile * mapSize + shift);
-    vec2 pos = now / mapSize;
     float score = 0.0;
-    if (threshold > 0.0) {
-      vec4 location = texture2D(terrain, pos);
-      score = floor((location.r - 0.5) * 128.0 + pos.y * 10000.0 + pos.x * 1000.0);
-    }
+    if (threshold > 0.0)
+      score = getZValue(shift, 0.0);
     if (threshold <= score) {
       vec4 result = getObjectColor(locals, shift);
       return blend(result, color, 1.0);
@@ -360,6 +493,11 @@
     }
     if (obstruction.a >= 8.0) {
       obstruction.a -= 8.0;
+      if (color.a == 0.0) {
+        color = getTerrainColor(locals, vec2(1, 1));
+        if (color.a > 0.0)
+          color.a = getZValue(vec2(1,1), 1.0);
+      }
       color = getZColor(spritesLandscape, locals, position, grid, vec2(1, 1), translate, color);
     }
     if (obstruction.a >= 4.0) {
@@ -503,7 +641,10 @@
       obstruction.b -= 1.0;
       color = getZObjectColor(locals, shift + vec2(1, 0), threshold, color);
     }
-    if (obstruction.a > 0.0 && color.a == 0.0) {
+    if (obstruction.a > 0.0) {
+      if (threshold > 0.0) {
+        float height = (threshold - floor(threshold)) * 255.0 - 127.0;
+      }
       color = blend(subterrain, color, 1.0);
     }
 
@@ -632,7 +773,7 @@
       // landscape
       terrain.data[i * 4 + 1] = Math.floor(Math.random() * 2);
       // terrain
-      terrain.data[i * 4 + 2] = Math.floor(Math.random() * 2)
+      terrain.data[i * 4 + 2] = Math.floor(Math.random() * 4) + 1;
       // terrain mask
       setPattern(terrain, i, options.mapSize, 3, true)
       // level
@@ -938,9 +1079,12 @@
     view = true;
   }
   var i = 0;
+  var limit = 100;//Infinity;
+  var repeat = 1;
   function render() {
     //if (i > 0)
-    console.profile(i);
+    if (location.search.indexOf('profile') > -1) console.profile(i);
+    for (var r = 0; r < repeat; r++) {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     //console.profile(i);
     // provide texture coordinates for the map.
@@ -1010,13 +1154,13 @@
 
     // Draw the thing.
     gl.drawArrays(gl.TRIANGLES, 0, 6);
-
+  }
+    if (location.search.indexOf('profile') > -1) console.profileEnd(i);
     // schedule next frame
-    if (i < 2)
+    if (i < limit)
       requestAnimationFrame(function() {
         render()
       });
-    console.profileEnd(i);
     i++;
     for (var name in canvases)
       if (canvases[name].offsetHeight)
