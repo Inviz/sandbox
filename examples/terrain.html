@@ -183,6 +183,160 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     );
   }
 
+  vec2 getCoordinates() {
+    return (tile * mapSize - floor(tile * mapSize));
+  }
+
+  vec2 getPosition(vec2 shift) {
+    return ((tile * mapSize) + shift) / mapSize;
+  }
+
+  float getVariation(vec2 position, float seed) {
+    return (snoise(floor(position * mapSize * seed)) + 1.0) / 2.0;
+  }
+
+  float getRandom(vec2 position, float range, float seed) {
+    return floor(getVariation(position, seed) * range);
+  }
+
+  vec4 getTerrain(vec2 shift) {
+    vec2 position = getPosition(shift);
+    return floor(texture2D(terrain, position) * 255.0);
+  }
+
+  bool checkTransition(float x, float a) {
+    return x > a;
+  }
+  bool checkTransition(float x, float a, float b) {
+    return checkTransition(x, a) && checkTransition(x, b);
+  }
+  bool checkTransition(float x, float a, float b, float c) {
+    return checkTransition(x, a, b) && checkTransition(x, c);
+  }
+  bool checkTransition(float x, float a, float b, float c, float d) {
+    return checkTransition(x, a, b, c) && checkTransition(x, d);
+  }
+
+  float getTransition(float x, float a, float b, float c, float d, float e, float f, float g, float h) {
+    // 4 sides
+    if (checkTransition(x, b, h, d, f))
+      return 9.0;
+    // 3 sides
+    if (checkTransition(x, b, d, f))
+      return 17.0;
+    if (checkTransition(x, h, d, f))
+      return 18.0;
+    if (checkTransition(x, h, b, f))
+      return 19.0;
+    if (checkTransition(x, h, d, b))
+      return 20.0;
+    // 2 sides + corner
+    if (checkTransition(x, h, f, c))
+      return 21.0;
+    if (checkTransition(x, h, b, e))
+      return 22.0;
+    if (checkTransition(x, b, d, g))
+      return 23.0;
+    if (checkTransition(x, a, f, d))
+      return 24.0;
+    // 1 side + 2 corners
+    if (checkTransition(x, h, c, e))
+      return 25.0;
+    if (checkTransition(x, b, g, e))
+      return 26.0;
+    if (checkTransition(x, d, a, g))
+      return 27.0;
+    if (checkTransition(x, f, a, c))
+      return 28.0;
+
+    /*
+    // 1 sides + 1 corner
+    if (checkTransition(x, h, f, c))
+      return 29.0;
+    if (checkTransition(x, h, b, e))
+      return 30.0;
+    if (checkTransition(x, b, d, g))
+      return 31.0;
+    if (checkTransition(x, a, f, d))
+      return 32.0;
+    */
+    // 2 sides
+    if (checkTransition(x, f, h))
+      return 1.0;
+    if (checkTransition(x, h, b))
+      return 3.0;
+    if (checkTransition(x, b, d))
+      return 5.0;
+    if (checkTransition(x, f, d))
+      return 7.0;
+    if (checkTransition(x, b, f))
+      return 15.0;
+    if (checkTransition(x, h, d))
+      return 16.0;
+    // 1 side
+    if (checkTransition(x, h))
+      return 2.0;
+    if (checkTransition(x, b))
+      return 4.0;
+    if (checkTransition(x, d))
+      return 6.0;
+    if (checkTransition(x, f))
+      return 8.0;
+    // 4 corners
+    if (checkTransition(x, a, c, g, e))
+      return 43.0;
+    // 2 corners
+    if (checkTransition(x, g, a))
+      return 33.0;
+    if (checkTransition(x, a, c))
+      return 34.0;
+    if (checkTransition(x, c, e))
+      return 35.0;
+    if (checkTransition(x, g, e))
+      return 36.0;
+    if (checkTransition(x, a, e))
+      return 37.0;
+    if (checkTransition(x, g, c))
+      return 38.0;
+    // 3 corners
+    if (checkTransition(x, g, a, e))
+      return 39.0;
+    if (checkTransition(x, g, a, c))
+      return 30.0;
+    if (checkTransition(x, a, c, e))
+      return 31.0;
+    if (checkTransition(x, c, g, e))
+      return 32.0;
+    // a corner
+    if (checkTransition(x, g))
+      return 11.0;
+    if (checkTransition(x, a))
+      return 12.0;
+    if (checkTransition(x, c))
+      return 13.0;
+    if (checkTransition(x, e))
+      return 14.0;
+    return 0.0;
+  }
+
+  vec4 getLocationTransition(vec4 location, vec2 shift) {
+    vec4 a = getTerrain(shift + vec2(-1, -1));
+    vec4 b = getTerrain(shift + vec2(0, -1));
+    vec4 c = getTerrain(shift + vec2(1, -1));
+    vec4 d = getTerrain(shift + vec2(1, 0));
+    vec4 e = getTerrain(shift + vec2(1, 1));
+    vec4 f = getTerrain(shift + vec2(0, 1));
+    vec4 g = getTerrain(shift + vec2(-1, 1));
+    vec4 h = getTerrain(shift + vec2(-1, 0));
+
+    return vec4(
+      getTransition(location.r, a.r, b.r, c.r, d.r, e.r, f.r, g.r, h.r),
+      getTransition(location.g, a.g, b.g, c.g, d.g, e.g, f.g, g.g, h.g),
+      getTransition(location.b, a.b, b.b, c.b, d.b, e.b, f.b, g.b, h.b),
+      getTransition(location.a, a.a, b.a, c.a, d.a, e.a, f.a, g.a, h.a)
+    );
+  }
+
   vec4 getColor(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift, vec2 translate) {
     vec2 offset = position * grid;
     vec2 start = getTilePosition(tile + shift / mapSize);
@@ -202,30 +356,72 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     vec2 coordinates = (tile * mapSize - floor(tile * mapSize));
     float x = position.x;
     float sprite = 0.0;
-    if (x > 32.0) {
+    // composable tiles use pieces of regular tiles to create more orientations
+    if (x > 20.0) {
       // sw
       if (coordinates.x < 0.5 && coordinates.y > 0.5) {
-        if (x == 43.0 || x == 33.0 || x == 36.0 || x == 38.0 || x == 39.0 || x == 40.0 || x == 42.0) {
+        // corners
+        if (x == 43.0 || x == 33.0 || x == 36.0 || x == 38.0 || x == 39.0 || x == 40.0 || x == 42.0 || x == 26.0 || x == 27.0 || x == 23.0) {
           sprite = 11.0;
         }
+        if (x == 25.0)
+          sprite = 2.0;
+        if (x == 28.0)
+          sprite = 8.0;
+        if (x == 21.0)
+          sprite = 1.0;
+        if (x == 22.0)
+          sprite = 3.0;
+        if (x == 24.0)
+          sprite = 7.0;
       }
       // ne
       if (coordinates.x < 0.5 && coordinates.y < 0.5) {
-        if (x == 43.0 || x == 33.0 || x == 34.0 || x == 37.0 || x == 39.0 || x == 40.0 || x == 41.0) {
+        if (x == 43.0 || x == 33.0 || x == 34.0 || x == 37.0 || x == 39.0 || x == 40.0 || x == 41.0 || x == 27.0 || x == 28.0 || x == 27.0 || x == 24.0) {
           sprite = 12.0;
         }
+        if (x == 26.0)
+          sprite = 4.0;
+        if (x == 25.0)
+          sprite = 2.0;
+        if (x == 21.0)
+          sprite = 1.0;
+        if (x == 22.0)
+          sprite = 3.0;
+        if (x == 23.0)
+          sprite = 5.0;
       }
       // ne
       if (coordinates.x > 0.5 && coordinates.y < 0.5) {
-        if (x == 43.0 || x == 34.0 || x == 35.0 || x == 38.0 || x == 40.0 || x == 41.0 || x == 42.0) {
+        if (x == 43.0 || x == 34.0 || x == 35.0 || x == 38.0 || x == 40.0 || x == 41.0 || x == 42.0 || x == 26.0 || x == 25.0 || x == 28.0 || x == 21.0) {
           sprite = 13.0;
         }
+        if (x == 26.0)
+          sprite = 4.0;
+        if (x == 27.0)
+          sprite = 6.0;
+        if (x == 22.0)
+          sprite = 3.0;
+        if (x == 23.0)
+          sprite = 5.0;
+        if (x == 24.0)
+          sprite = 7.0;
       }
       // se
       if (coordinates.x > 0.5 && coordinates.y > 0.5) {
-        if (x == 43.0 || x == 35.0 || x == 36.0 || x == 37.0 || x == 39.0 || x == 41.0 || x == 42.0) {
+        if (x == 43.0 || x == 35.0 || x == 36.0 || x == 37.0 || x == 39.0 || x == 41.0 || x == 42.0 || x == 26.0 || x == 25.0 || x == 22.0) {
           sprite = 14.0;
         }
+        if (x == 27.0)
+          sprite = 6.0;
+        if (x == 28.0)
+          sprite = 8.0;
+        if (x == 21.0)
+          sprite = 1.0;
+        if (x == 23.0)
+          sprite = 5.0;
+        if (x == 24.0)
+          sprite = 7.0;
       }
       if (sprite == 0.0) {
         return vec4(0, 0, 0, 1);
@@ -236,21 +432,6 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     position.x = x - 1.0;
     vec2 grid = vec2(tileSize * 2.0, tileSize);
     return getColor(spritesTransitions, locals, position, grid, vec2(0, 0), translate);
-  }
-
-  vec2 getCoordinates() {
-    return (tile * mapSize - floor(tile * mapSize));
-  }
-
-  vec2 getPosition(vec2 shift) {
-    return ((tile * mapSize) + shift) / mapSize;
-  }
-
-  float getVariation(vec2 position, float seed) {
-    return (snoise(floor(position * mapSize * seed)) + 1.0) / 2.0;
-  }
-  float getRandom(vec2 position, float range, float seed) {
-    return floor(getVariation(position, seed) * range);
   }
 
   vec2 getTranslation(vec2 shift) {
@@ -272,12 +453,12 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     vec4 b = result;
     vec4 c = result;
     vec4 corner = floor(texture2D(terrain, pos + first / mapSize) * 255.0);
-    if (corner.b < threshold) {
+    if (corner.r < threshold) {
       a = corner;
       results++;
     }
     corner = floor(texture2D(terrain, pos + second / mapSize) * 255.0);
-    if (corner.b < threshold) {
+    if (corner.r < threshold) {
       if (results == 1.0)
         b = corner;
       else
@@ -285,7 +466,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       results++;
     }
     corner = floor(texture2D(terrain, pos + third / mapSize) * 255.0);
-    if (corner.b < threshold) {
+    if (corner.r < threshold) {
       if (results == 2.0)
         c = corner;
       if (results == 1.0)
@@ -316,42 +497,42 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     vec2 pos = now / mapSize;
     if (coordinates.x < 1.0 / 3.0 && coordinates.y < 1.0 / 3.0) {
       vec4 corner = getBestCorner(pos, threshold, variation, vec2(-1, -1), vec2(-1, 0), vec2(0, -1));
-      if (corner.b > 0.0)
+      if (corner.r > 0.0)
         return corner;
     }
     if (coordinates.x > 2.0 / 3.0 && coordinates.y < 1.0 / 3.0) {
       vec4 corner = getBestCorner(pos, threshold, variation, vec2(1, -1), vec2(0, -1), vec2(1,0));
-      if (corner.b > 0.0)
+      if (corner.r > 0.0)
         return corner;
     }
     if (coordinates.x > 2.0 / 3.0 && coordinates.y > 2.0 / 3.0) {
       vec4 corner = getBestCorner(pos, threshold, variation, vec2(1, 1), vec2(1, 0), vec2(0, 1));
-      if (corner.b > 0.0)
+      if (corner.r > 0.0)
         return corner;
     }
     if (coordinates.x < 1.0 / 3.0 && coordinates.y > 2.0 / 3.0) {
       vec4 corner = getBestCorner(pos, threshold, variation, vec2(-1, 1), vec2(-1, 0), vec2(0, 1));
-      if (corner.b > 0.0)
+      if (corner.r > 0.0)
         return corner;
     }
     if (coordinates.x < 1.0 / 2.0 && coordinates.y < 1.0 / 2.0) {
       vec4 corner = getBestCorner(pos, threshold, variation, vec2(-1, 0), vec2(-1, 0), vec2(-1, -1));
-      if (corner.b > 0.0)
+      if (corner.r > 0.0)
         return corner;
     }
     if (coordinates.x > 1.0 / 2.0 && coordinates.y < 1.0 / 2.0){
       vec4 corner = getBestCorner(pos, threshold, variation, vec2(0, -1), vec2(1, 0), vec2(1, -1));
-      if (corner.b > 0.0)
+      if (corner.r > 0.0)
         return corner;
     }
     if (coordinates.x > 1.0 / 2.0 && coordinates.y > 1.0 / 2.0){
       vec4 corner = getBestCorner(pos, threshold, variation, vec2(1, 0), vec2(0, 1), vec2(1, 1));
-      if (corner.b > 0.0)
+      if (corner.r > 0.0)
         return corner;
     }
     if (coordinates.x < 1.0 / 2.0 && coordinates.y > 1.0 / 2.0) {
       vec4 corner = getBestCorner(pos, threshold, variation, vec2(0, 1), vec2(-1, 0), vec2(-1, 1));
-      if (corner.b > 0.0)
+      if (corner.r > 0.0)
         return corner;
     }
     /**/
@@ -359,36 +540,45 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   }
 
 
-  vec4 getTerrainColor(vec2 locals, vec2 shift) {
+  vec4 getLocation(vec2 shift) {
     vec2 position = getPosition(shift);
-    vec4 location = floor(texture2D(terrain, position) * 255.0);
+    return floor(texture2D(terrain, position) * 255.0);
+  }
+
+  vec4 getTerrainColor(vec2 locals, vec2 shift, vec4 location, vec4 transition) {
     vec2 translate = getTranslation(shift);
     vec2 grid = vec2(tileSize * 2.0, tileSize);
     vec2 here = vec2(0, 0);
-    float variation = getRandom(position, 4.0, 1.0);
-    if (location.a > 0.0) {
-      vec2 mask = vec2(location.a, 1);
+    float variation = getRandom(getPosition(shift), 4.0, 1.0);
+    if (transition.r > 0.0) {
+      vec2 mask = vec2(transition.r, 1);
       vec4 masked = getTransitionColor(locals, mask, here, translate);
       if (masked.a == 0.0) {
-        vec4 corner = getCorner(locals, shift, translate, location.b);
-        if (corner.b > 0.0) {
-          return getColor(spritesTerrain, locals, vec2(variation, corner.b - 1.0), grid, vec2(0,0), translate);
+        vec4 corner = getCorner(locals, shift, translate, location.r);
+        if (corner.r > 0.0) {
+          return getColor(spritesTerrain, locals, vec2(variation, corner.r - 1.0), grid, vec2(0,0), translate);
         }
-        //return vec4(0,0,0,0);
+      } else {
+        //return masked;
       }
+      //return vec4(0,0,0,0);
     }
-    vec2 terrain = vec2(variation, location.b - 1.0);
+    vec2 terrain = vec2(variation, location.r - 1.0);
     return getColor(spritesTerrain, locals, terrain, grid, vec2(0, 0), translate);
   }
 
-  vec4 getOverlayColor(vec2 locals, vec2 shift) {
-    vec2 position = getPosition(shift);
-    vec4 location = floor(texture2D(overlay, position) * 255.0);
+  vec4 getTerrainColor(vec2 locals, vec2 shift) {
+    vec4 location = getLocation(shift);
+    vec4 transition = getLocationTransition(location, shift);
+    return getTerrainColor(locals, shift, location, transition);
+  }
+
+  vec4 getOverlayColor(vec2 locals, vec2 shift, vec4 location, vec4 transition) {
     vec2 translate = getTranslation(shift);
     if (location.b == 0.0)
       return vec4(0, 0, 0, 0);
-    if (location.a > 0.0) {
-      vec2 mask = vec2(location.a, 0);
+    if (transition.b > 0.0) {
+      vec2 mask = vec2(transition.b, 0);
       vec4 masked = getTransitionColor(locals, mask, vec2(0, 0), translate);
       if (!(masked.r == 0.0 && masked.g == 0.0 && masked.b == 0.0 && masked.a == 1.0))
         return masked;
@@ -655,17 +845,22 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   void main() {
     vec2 locals = pixel - getTilePosition(tile);
     vec2 shift = vec2(0, 0);
+
+    vec4 location = getTerrain(shift);
+    vec4 transition = getLocationTransition(location, shift);
+
+
     vec4 color = vec4(0,0,0,0);
-    color = blend(color, getObstructionColor(locals, shift), 1.0);
-    if (color.a < 1.0) {
-      color = blend(color, getObjectColor(locals, shift), 1.0);
-      if (color.a < 1.0) {
-        color = blend(color, getOverlayColor(locals, shift), 1.0);
+    // color = blend(color, getObstructionColor(locals, shift), 1.0);
+    //if (color.a < 1.0) {
+    //  color = blend(color, getObjectColor(locals, shift), 1.0);
+    //  if (color.a < 1.0) {
+        color = blend(color, getOverlayColor(locals, shift, location, transition), 1.0);
         if (color.a < 1.0) {
-          color = blend(color, getTerrainColor(locals, shift), 1.0);
+          color = blend(color, getTerrainColor(locals, shift, location, transition), 1.0);
         }
-      }
-    }
+    //  }
+    //}
     gl_FragColor = color;
   }
 </script>
@@ -770,31 +965,31 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     var subterrain = getImageData('subterrain');
     var obstruction = getImageData('obstruction');
     for (var i = 0, j = Math.pow(options.mapSize, 2); i < j; i++) {
-      // landscape
-      terrain.data[i * 4 + 1] = Math.floor(Math.random() * 2);
-      // terrain
-      terrain.data[i * 4 + 2] = Math.floor(Math.random() * 4) + 1;
-      // terrain mask
-      setPattern(terrain, i, options.mapSize, 3, true)
-      // level
-      terrain.data[i * 4] = 127;
+      // R: terrain
+      terrain.data[i * 4 + 0] = Math.floor(Math.random() * 3) + 1;
+      // G: overlay
+      terrain.data[i * 4 + 1] = 0//Math.floor(Math.random() * 4) + 1;
+      // B: water
+      terrain.data[i * 4 + 2] = matchRegion(terrain, i, options.mapSize, water) && 1;
+      // A: level
+      terrain.data[i * 4 + 3] = 128;
       if (Math.random() > 0.9 || matchRegion(terrain, i, options.mapSize, mountians)) {
         if (location.search.indexOf('flat') > -1)
           var height = 0;
         else
           var height = Math.floor(random2() * 4);
-        terrain.data[i * 4] += height * 2;
-        for (var k = 0; k <= height; k++) {
-          var pos = i - k * options.mapSize - k;
-          var diff = height - k;
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 2, 2, 64);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 2, 32);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 2, 1, 16);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 1, 8);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 0, 1, 4);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 0, 2);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 0, 0, 1);
-        }
+        terrain.data[i * 4 + 3] += height * 2;
+        //for (var k = 0; k <= height; k++) {
+        //  var pos = i - k * options.mapSize - k;
+        //  var diff = height - k;
+        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 2, 2, 64);
+        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 2, 32);
+        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 2, 1, 16);
+        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 1, 8);
+        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 0, 1, 4);
+        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 0, 2);
+        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 0, 0, 1);
+        //}
       }
     }
     return {
@@ -904,15 +1099,15 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       result |= 2
     if (getTerrainType(data, i - width + 1) < type)
       result |= 4
-    if (getTerrainType(data, i - 1) < type)
-      result |= 8
     if (getTerrainType(data, i + 1) < type)
-      result |= 16
-    if (getTerrainType(data, i + width - 1) < type)
-      result |= 32
-    if (getTerrainType(data, i + width) < type)
-      result |= 64
+      result |= 8
     if (getTerrainType(data, i + width + 1) < type)
+      result |= 16
+    if (getTerrainType(data, i + width) < type)
+      result |= 32
+    if (getTerrainType(data, i + width - 1) < type)
+      result |= 64
+    if (getTerrainType(data, i - 1) < type)
       result |= 128
     if (raw)
       return result;
