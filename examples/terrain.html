@@ -2,6 +2,7 @@
   <base href=".." />
 </head>
 <body>
+<!--
 <script src="source/Type.js"></script>
 <script src="source/Property.js"></script>
 <script src="source/Map.js"></script>
@@ -15,20 +16,25 @@
 <script src="source/Location.js"></script>
 <script src="source/Time.js"></script>
 <script src="source/Reference.js"></script>
+-->
 <script src="source/GL.js"></script>
+<!-- 
 <script src="data/Properties.js"></script>
 <script src="data/Quests.js"></script>
 <script src="data/Resources.js"></script>
 <script src="data/Actions.js"></script>
 <script src="data/Creatures.js"></script>
 <script src="data/Items.js"></script>
+-->
 <script src="lib/Seed.js"></script>
 <script src="lib/gl-matrix/common.js"></script>
 <script src="lib/gl-matrix/mat4.js"></script>
 <script src="lib/gl-matrix/vec3.js"></script>
 <script>
 // fps
+window.onload = function() {
 eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)%3Bscript.src%3D%27http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js%27%3Bdocument.body.appendChild(script)%3Bscript%3Ddocument.createElement(%27script%27)%3Bscript.innerHTML%3D%27var%20interval%3DsetInterval(function()%7Bif(typeof%20Stats%3D%3D%5C%27function%5C%27)%7BclearInterval(interval)%3Bvar%20stats%3Dnew%20Stats()%3Bstats.domElement.style.position%3D%5C%27fixed%5C%27%3Bstats.domElement.style.left%3D%5C%270px%5C%27%3Bstats.domElement.style.top%3D%5C%270px%5C%27%3Bstats.domElement.style.zIndex%3D%5C%2710000%5C%27%3Bdocument.body.appendChild(stats.domElement)%3BsetInterval(function()%7Bstats.update()%3B%7D,1000/60)%3B%7D%7D,100)%3B%27%3Bdocument.body.appendChild(script)%3B%7D)()%3B"))
+};
 </script>
 <style>
 
@@ -60,18 +66,24 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   uniform mat4 camera;
   uniform mat4 projection;
   uniform mat4 orientation;
+  uniform int step;
 
   varying vec2 pixel;
   varying vec2 tile;
 
   void main() {
-    vec2 pos = position;
-    pos.y = - pos.y - 0.5;
-    pixel = ((pos + 1.0) / 2.0 * viewport) + scroll;
-    pixel.y *= 2.0;
     tile = texture;
-    
-    gl_Position = vec4(position, 0, 1) * matrix * projection *camera;
+    if (step == 1) {
+      vec2 pos = texture * 2.0 - 1.0;
+      gl_Position = vec4(pos, 0, 1);
+    } else {
+      vec2 pos = position;
+      pos.y = - pos.y - 0.5;
+      pixel = ((pos + 1.0) / 2.0 * viewport) + scroll;
+      pixel.y *= 2.0;
+      
+      gl_Position = vec4(position, 0, 1) * matrix * projection *camera;
+    }
   }
 </script>
 
@@ -150,16 +162,22 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   }
 
 
+  // game map textures
   uniform sampler2D terrain;
   uniform sampler2D subterrain;
   uniform sampler2D overlay;
-  uniform sampler2D obstruction;
   uniform sampler2D objects;
+  uniform sampler2D obstruction;
 
+  // prepared textures
+  uniform sampler2D transitions;
+
+  // terrain textures and masks
   uniform sampler2D spritesLandscape;
   uniform sampler2D spritesTerrain;
   uniform sampler2D spritesTransitions;
 
+  // object textures
   uniform sampler2D sprites64x64;
   uniform sampler2D sprites64x160;
   uniform sampler2D sprites192x160;
@@ -167,6 +185,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   uniform vec2 mapSize;
   uniform vec2 atlasSize;
   uniform float tileSize;
+  uniform int step;
   uniform mat4 projection;
   uniform mat4 orientation;
 
@@ -204,122 +223,119 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     return floor(texture2D(terrain, position) * 255.0);
   }
 
-  bool checkTransition(float x, float a) {
-    return x > a;
-  }
-  bool checkTransition(float x, float a, float b) {
-    return checkTransition(x, a) && checkTransition(x, b);
-  }
-  bool checkTransition(float x, float a, float b, float c) {
-    return checkTransition(x, a, b) && checkTransition(x, c);
-  }
-  bool checkTransition(float x, float a, float b, float c, float d) {
-    return checkTransition(x, a, b, c) && checkTransition(x, d);
+  vec4 getSubterrain(vec2 shift) {
+    vec2 position = getPosition(shift);
+    return floor(texture2D(subterrain, position) * 255.0);
   }
 
   float getTransition(float x, float a, float b, float c, float d, float e, float f, float g, float h) {
     // 4 sides
-    if (checkTransition(x, b, h, d, f))
+    if (x > b && x > h && x > d && x > f)
       return 9.0;
     // 3 sides
-    if (checkTransition(x, b, d, f))
+    if (x > b && x > d && x > f)
       return 17.0;
-    if (checkTransition(x, h, d, f))
+    if (x > h && x > d && x > f)
       return 18.0;
-    if (checkTransition(x, h, b, f))
+    if (x > h && x > b && x > f)
       return 19.0;
-    if (checkTransition(x, h, d, b))
+    if (x > h && x > d && x > b)
       return 20.0;
     // 2 sides + corner
-    if (checkTransition(x, h, f, c))
+    if (x > h && x > f && x > c)
       return 21.0;
-    if (checkTransition(x, h, b, e))
+    if (x > h && x > b && x > e)
       return 22.0;
-    if (checkTransition(x, b, d, g))
+    if (x > b && x > d && x > g)
       return 23.0;
-    if (checkTransition(x, a, f, d))
+    if (x > a && x > f && x > d)
       return 24.0;
-    // 1 side + 2 corners
-    if (checkTransition(x, h, c, e))
-      return 25.0;
-    if (checkTransition(x, b, g, e))
-      return 26.0;
-    if (checkTransition(x, d, a, g))
-      return 27.0;
-    if (checkTransition(x, f, a, c))
-      return 28.0;
-
-    /*
-    // 1 sides + 1 corner
-    if (checkTransition(x, h, f, c))
-      return 29.0;
-    if (checkTransition(x, h, b, e))
-      return 30.0;
-    if (checkTransition(x, b, d, g))
-      return 31.0;
-    if (checkTransition(x, a, f, d))
-      return 32.0;
-    */
     // 2 sides
-    if (checkTransition(x, f, h))
+    if (x > f && x > h)
       return 1.0;
-    if (checkTransition(x, h, b))
+    if (x > h && x > b)
       return 3.0;
-    if (checkTransition(x, b, d))
+    if (x > b && x > d)
       return 5.0;
-    if (checkTransition(x, f, d))
+    if (x > f && x > d)
       return 7.0;
-    if (checkTransition(x, b, f))
+    if (x > b && x > f)
       return 15.0;
-    if (checkTransition(x, h, d))
+    if (x > h && x > d)
       return 16.0;
+    // 1 side + 2 corners
+    if (x > h && x > c && x > e)
+      return 25.0;
+    if (x > b && x > g && x > e)
+      return 26.0;
+    if (x > d && x > a && x > g)
+      return 27.0;
+    if (x > f && x > a && x > c)
+      return 28.0;
+    // 1 sides + 1 corner
+    if (x > h && x > c)
+      return 29.0;
+    if (x > h && x > e)
+      return 30.0;
+    if (x > b && x > e)
+      return 31.0;
+    if (x > b && x > g)
+      return 32.0;
+    if (x > d && x > g)
+      return 33.0;
+    if (x > d && x > a)
+      return 34.0;
+    if (x > f && x > a)
+      return 35.0;
+    if (x > f && x > c)
+      return 36.0;
     // 1 side
-    if (checkTransition(x, h))
+    if (x > h)
       return 2.0;
-    if (checkTransition(x, b))
+    if (x > b)
       return 4.0;
-    if (checkTransition(x, d))
+    if (x > d)
       return 6.0;
-    if (checkTransition(x, f))
+    if (x > f)
       return 8.0;
     // 4 corners
-    if (checkTransition(x, a, c, g, e))
-      return 43.0;
-    // 2 corners
-    if (checkTransition(x, g, a))
-      return 33.0;
-    if (checkTransition(x, a, c))
-      return 34.0;
-    if (checkTransition(x, c, e))
-      return 35.0;
-    if (checkTransition(x, g, e))
-      return 36.0;
-    if (checkTransition(x, a, e))
-      return 37.0;
-    if (checkTransition(x, g, c))
-      return 38.0;
+    if (x > a && x > c && x > g && x > e)
+      return 47.0;
     // 3 corners
-    if (checkTransition(x, g, a, e))
+    if (x > g && x > a && x > e)
+      return 43.0;
+    if (x > g && x > a && x > c)
+      return 44.0;
+    if (x > a && x > c && x > e)
+      return 45.0;
+    if (x > c && x > g && x > e)
+      return 46.0;
+    // 2 corners
+    if (x > g && x > a)
+      return 37.0;
+    if (x > a && x > c)
+      return 38.0;
+    if (x > c && x > e)
       return 39.0;
-    if (checkTransition(x, g, a, c))
-      return 30.0;
-    if (checkTransition(x, a, c, e))
-      return 31.0;
-    if (checkTransition(x, c, g, e))
-      return 32.0;
+    if (x > g && x > e)
+      return 40.0;
+    if (x > a && x > e)
+      return 41.0;
+    if (x > g && x > c)
+      return 42.0;
     // a corner
-    if (checkTransition(x, g))
+    if (x > g)
       return 11.0;
-    if (checkTransition(x, a))
+    if (x > a)
       return 12.0;
-    if (checkTransition(x, c))
+    if (x > c)
       return 13.0;
-    if (checkTransition(x, e))
+    if (x > e)
       return 14.0;
     return 0.0;
   }
 
-  vec4 getLocationTransition(vec4 location, vec2 shift) {
+  vec4 getTerrainTransition(vec4 location, vec2 shift) {
     vec4 a = getTerrain(shift + vec2(-1, -1));
     vec4 b = getTerrain(shift + vec2(0, -1));
     vec4 c = getTerrain(shift + vec2(1, -1));
@@ -337,13 +353,17 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     );
   }
 
+  vec4 getPreparedTerrainTransition(vec4 location, vec2 shift) {
+    return floor(texture2D(transitions, getPosition(shift)) * 255.0);
+  }
+
   vec4 getColor(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift, vec2 translate) {
     vec2 offset = position * grid;
     vec2 start = getTilePosition(tile + shift / mapSize);
     vec2 diff = ((pixel - locals) - start);
     vec2 point = locals + diff + translate;
     point.x += (grid.x - tileSize * 2.0) / 2.0;
-    point.y += (grid.y - tileSize) + 1.0;
+    point.y += (grid.y - tileSize);
     if (point.x > 0.0 && point.x < grid.x && point.y > 0.0 && point.y < grid.y)
       return texture2D(texture, (point + offset) / atlasSize);
     else 
@@ -361,12 +381,12 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       // sw
       if (coordinates.x < 0.5 && coordinates.y > 0.5) {
         // corners
-        if (x == 43.0 || x == 33.0 || x == 36.0 || x == 38.0 || x == 39.0 || x == 40.0 || x == 42.0 || x == 26.0 || x == 27.0 || x == 23.0) {
+        if (x == 47.0 || x == 37.0 || x == 40.0 || x == 42.0 || x == 43.0 || x == 44.0 || x == 46.0 || x == 26.0 || x == 27.0 || x == 23.0 || x == 32.0 || x == 33.0) {
           sprite = 11.0;
         }
-        if (x == 25.0)
+        if (x == 25.0 || x == 29.0 || x == 30.0)
           sprite = 2.0;
-        if (x == 28.0)
+        if (x == 28.0 || x == 35.0 || x == 36.0)
           sprite = 8.0;
         if (x == 21.0)
           sprite = 1.0;
@@ -377,12 +397,12 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       }
       // ne
       if (coordinates.x < 0.5 && coordinates.y < 0.5) {
-        if (x == 43.0 || x == 33.0 || x == 34.0 || x == 37.0 || x == 39.0 || x == 40.0 || x == 41.0 || x == 27.0 || x == 28.0 || x == 27.0 || x == 24.0) {
+        if (x == 47.0 || x == 37.0 || x == 38.0 || x == 41.0 || x == 43.0 || x == 44.0 || x == 45.0 || x == 27.0 || x == 28.0 || x == 27.0 || x == 24.0 || x == 34.0|| x == 35.0) {
           sprite = 12.0;
         }
-        if (x == 26.0)
+        if (x == 26.0 || x == 31.0 || x == 32.0)
           sprite = 4.0;
-        if (x == 25.0)
+        if (x == 25.0 || x == 29.0 || x == 30.0)
           sprite = 2.0;
         if (x == 21.0)
           sprite = 1.0;
@@ -393,12 +413,12 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       }
       // ne
       if (coordinates.x > 0.5 && coordinates.y < 0.5) {
-        if (x == 43.0 || x == 34.0 || x == 35.0 || x == 38.0 || x == 40.0 || x == 41.0 || x == 42.0 || x == 26.0 || x == 25.0 || x == 28.0 || x == 21.0) {
+        if (x == 47.0 || x == 38.0 || x == 39.0 || x == 42.0 || x == 44.0 || x == 45.0 || x == 46.0 || x == 26.0 || x == 25.0 || x == 28.0 || x == 21.0 || x == 29.0|| x == 36.0) {
           sprite = 13.0;
         }
-        if (x == 26.0)
+        if (x == 26.0 || x == 31.0 || x == 32.0)
           sprite = 4.0;
-        if (x == 27.0)
+        if (x == 27.0 || x == 33.0 || x == 34.0)
           sprite = 6.0;
         if (x == 22.0)
           sprite = 3.0;
@@ -409,12 +429,12 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       }
       // se
       if (coordinates.x > 0.5 && coordinates.y > 0.5) {
-        if (x == 43.0 || x == 35.0 || x == 36.0 || x == 37.0 || x == 39.0 || x == 41.0 || x == 42.0 || x == 26.0 || x == 25.0 || x == 22.0) {
+        if (x == 47.0 || x == 39.0 || x == 40.0 || x == 41.0 || x == 43.0 || x == 45.0 || x == 46.0 || x == 26.0 || x == 25.0 || x == 22.0 || x == 30.0 || x == 31.0) {
           sprite = 14.0;
         }
-        if (x == 27.0)
+        if (x == 27.0 || x == 33.0 || x == 34.0)
           sprite = 6.0;
-        if (x == 28.0)
+        if (x == 28.0 || x == 35.0 || x == 36.0)
           sprite = 8.0;
         if (x == 21.0)
           sprite = 1.0;
@@ -539,38 +559,24 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     return vec4(0,0,0,0);
   }
 
-
-  vec4 getLocation(vec2 shift) {
-    vec2 position = getPosition(shift);
-    return floor(texture2D(terrain, position) * 255.0);
-  }
-
   vec4 getTerrainColor(vec2 locals, vec2 shift, vec4 location, vec4 transition) {
     vec2 translate = getTranslation(shift);
     vec2 grid = vec2(tileSize * 2.0, tileSize);
     vec2 here = vec2(0, 0);
     float variation = getRandom(getPosition(shift), 4.0, 1.0);
+    vec2 terrain = vec2(variation, location.r - 1.0);
     if (transition.r > 0.0) {
       vec2 mask = vec2(transition.r, 1);
       vec4 masked = getTransitionColor(locals, mask, here, translate);
       if (masked.a == 0.0) {
         vec4 corner = getCorner(locals, shift, translate, location.r);
-        if (corner.r > 0.0) {
-          return getColor(spritesTerrain, locals, vec2(variation, corner.r - 1.0), grid, vec2(0,0), translate);
-        }
+        if (corner.r > 0.0)
+          terrain.y = corner.r - 1.0;
       } else {
         //return masked;
       }
-      //return vec4(0,0,0,0);
     }
-    vec2 terrain = vec2(variation, location.r - 1.0);
     return getColor(spritesTerrain, locals, terrain, grid, vec2(0, 0), translate);
-  }
-
-  vec4 getTerrainColor(vec2 locals, vec2 shift) {
-    vec4 location = getLocation(shift);
-    vec4 transition = getLocationTransition(location, shift);
-    return getTerrainColor(locals, shift, location, transition);
   }
 
   vec4 getOverlayColor(vec2 locals, vec2 shift, vec4 location, vec4 transition) {
@@ -633,12 +639,13 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     vec2 now = floor(tile * mapSize + shift);
     vec2 pos = now / mapSize;
     vec4 location = texture2D(subterrain, pos);
-    float rating = location.r - 0.5;
+    if (location.r == 0.0 && location.g == 0.0 && location.b == 0.0 && location.a == 0.0)
+      location = texture2D(terrain, pos);
+    float rating = location.a - 0.5;
     float height = floor(rating * 128.0);
-    if (heighted > 0.0)
-      now += vec2(height, height) + vec2(1,1);
+    now += vec2(height, height) - heighted; 
     vec2 origin = now / mapSize;
-    return location.r + floor((origin.y * mapSize.y + origin.x) * mapSize.x * mapSize.y);
+    return location.a + floor((origin.y * mapSize.y + origin.x) * mapSize.x * mapSize.y);
   }
 
   vec4 getZColor(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift, vec2 translate, vec4 color) {
@@ -664,42 +671,89 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     return color;
   }
 
-  vec4 getSubterrainColor(vec4 obstruction, vec2 locals, vec2 shift) {
+  vec4 getSubterrainColor(vec4 obstruction, vec2 locals, vec2 shift, vec4 location, vec4 transition) {
     vec4 color = vec4(0, 0, 0, 0);
-    vec2 position = vec2(0, 0);
     vec2 translate = vec2(0, 0);
     vec2 grid = vec2(tileSize * 2.0, tileSize * 2.0);
     if (obstruction.a >= 64.0) {
       obstruction.a -= 64.0;
-      color = getZColor(spritesLandscape, locals, position, grid, vec2(2, 2), translate, color);
+      vec2 position = vec2(getRandom(getPosition(shift + vec2(2, 2)), 4.0, 1.0), 0);
+      vec2 subshift = vec2(2, 2);  
+      vec4 origin = getSubterrain(subshift);
+      float height = floor((origin.a - 127.0) / 2.0) ;
+      if (height > 0.0) {
+        subshift += vec2(height, height) - 1.0;
+        origin = getTerrain(subshift);
+      }
+      vec4 next = getTerrain(subshift - 1.0);
+      if (origin.a != next.a)
+        color = getZColor(spritesLandscape, locals, position, grid, vec2(2, 2), translate, color);
     }
     if (obstruction.a >= 32.0) {
       obstruction.a -= 32.0;
-      color = getZColor(spritesLandscape, locals, position, grid, vec2(1, 2), translate, color);
+      vec2 position = vec2(getRandom(getPosition(shift + vec2(1, 2)), 4.0, 1.0), 0);
+      vec2 subshift = vec2(1, 2);  
+      vec4 origin = getSubterrain(subshift);
+      float height = floor((origin.a - 127.0) / 2.0) ;
+      if (height > 0.0) {
+        subshift += vec2(height, height) - 1.0;
+        origin = getTerrain(subshift);
+      }
+      vec4 next = getTerrain(subshift - vec2(0, 1));
+      if (origin.a != next.a)
+        color = getZColor(spritesLandscape, locals, position, grid, vec2(1, 2), translate, color);
     }
     if (obstruction.a >= 16.0) {
       obstruction.a -= 16.0;
-      color = getZColor(spritesLandscape, locals, position, grid, vec2(2, 1), translate, color);
-    }
+      vec2 position = vec2(getRandom(getPosition(shift + vec2(2, 1)), 4.0, 1.0), 0);
+      vec2 subshift = vec2(2, 1);  
+      vec4 origin = getSubterrain(subshift);
+      float height = floor((origin.a - 127.0) / 2.0) ;
+      if (height > 0.0) {
+        subshift += vec2(height, height) - 1.0;
+        origin = getTerrain(subshift);
+      }
+      vec4 next = getSubterrain(subshift - vec2(1, 0));
+      if (origin.a != next.a)
+        color = getZColor(spritesLandscape, locals, position, grid, vec2(2, 1), translate, color);
+    } 
     if (obstruction.a >= 8.0) {
       obstruction.a -= 8.0;
       if (color.a == 0.0) {
-        color = getTerrainColor(locals, vec2(1, 1));
+        vec2 subshift = vec2(1,1);
+        vec4 origin = getSubterrain(subshift);
+        float height = floor((origin.a - 127.0) / 2.0) ;
+        if (height > 0.0) {
+          subshift = vec2(height, height);
+          origin = getTerrain(subshift);
+        }
+        vec4 originTransition = getPreparedTerrainTransition(origin, subshift);
+        if (originTransition.a > 0.0) {
+          vec2 pos = vec2(originTransition.a, 5.0);
+          color = getTransitionColor(locals, pos, vec2(0, 0), getTranslation(shift));
+        }
+        if (color.a > 0.0) {
+          color = getTerrainColor(locals, subshift, origin, originTransition);
+        }
         if (color.a > 0.0)
           color.a = getZValue(vec2(1,1), 1.0);
       }
+      vec2 position = vec2(getRandom(getPosition(shift + vec2(1, 1)), 4.0, 1.0), 0);
       color = getZColor(spritesLandscape, locals, position, grid, vec2(1, 1), translate, color);
     }
     if (obstruction.a >= 4.0) {
       obstruction.a -= 4.0;
+      vec2 position = vec2(getRandom(getPosition(shift + vec2(0, 1)), 4.0, 1.0), 0);
       color = getZColor(spritesLandscape, locals, position, grid, vec2(0, 1), translate, color);
     }
     if (obstruction.a >= 2.0) {
       obstruction.a -= 2.0;
+      vec2 position = vec2(getRandom(getPosition(shift + vec2(1, 0)), 4.0, 1.0), 0);
       color = getZColor(spritesLandscape, locals, position, grid, vec2(1.0, 0.0), translate, color);
     }
     if (obstruction.a >= 1.0) {
       obstruction.a -= 1.0;
+      vec2 position = vec2(getRandom(getPosition(shift + vec2(0, 0)), 4.0, 1.0), 0);
       color = getZColor(spritesLandscape, locals, position, grid, vec2(0.0, 0.0), translate, color);
     }
     return color;
@@ -710,16 +764,15 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
 
   // this function decodes that information
   // and does necessary texture lookups
-  vec4 getObstructionColor(vec2 locals, vec2 shift) {
+  vec4 getObstructionColor(vec2 locals, vec2 shift, vec4 location, vec4 transition) {
     vec2 now = floor(tile * mapSize + shift);
     vec2 pos = now / mapSize;
     vec4 color = vec4(0, 0, 0, 0);
-    vec4 location = texture2D(obstruction, pos);
-    vec4 obstruction = floor(location * 255.0);
-    vec4 subterrain = vec4(0,0,0,0);
+    vec4 subterrain = vec4(0, 0, 0, 0);
+    vec4 obstruction = floor(texture2D(obstruction, pos) * 255.0);
     float threshold = 0.0;
     if (obstruction.a > 0.0) {
-      subterrain = getSubterrainColor(obstruction, locals, shift);
+      subterrain = getSubterrainColor(obstruction, locals, shift, location, transition);
       if (subterrain.a > 0.0) {
         threshold = subterrain.a;
         subterrain.a = 1.0;
@@ -845,23 +898,28 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   void main() {
     vec2 locals = pixel - getTilePosition(tile);
     vec2 shift = vec2(0, 0);
-
     vec4 location = getTerrain(shift);
-    vec4 transition = getLocationTransition(location, shift);
 
-
-    vec4 color = vec4(0,0,0,0);
-    // color = blend(color, getObstructionColor(locals, shift), 1.0);
-    //if (color.a < 1.0) {
-    //  color = blend(color, getObjectColor(locals, shift), 1.0);
-    //  if (color.a < 1.0) {
-        color = blend(color, getOverlayColor(locals, shift, location, transition), 1.0);
+    if (step == 0) {
+      vec4 transition = getPreparedTerrainTransition(location, shift);
+      vec4 color = vec4(0,0,0,0);
+       color = blend(color, getObstructionColor(locals, shift, location, transition), 1.0);
+      if (color.a < 1.0) {
+        color = blend(color, getObjectColor(locals, shift), 1.0);
         if (color.a < 1.0) {
-          color = blend(color, getTerrainColor(locals, shift, location, transition), 1.0);
+          color = blend(color, getOverlayColor(locals, shift, location, transition), 1.0);
+          if (color.a < 1.0) {
+            color = blend(color, getTerrainColor(locals, shift, location, transition), 1.0);
+          }
         }
-    //  }
-    //}
-    gl_FragColor = color;
+      }
+      gl_FragColor = color;
+    }
+    if (step == 1) {
+      gl_FragColor = getTerrainTransition(location, shift) / 255.0;
+    } else if (step == 3) {
+      gl_FragColor = vec4(0,1,0,1);
+    }
   }
 </script>
 
@@ -889,6 +947,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   var position  = GL.Program.Attribute(gl, program, 'position');
   var texture   = GL.Program.Attribute(gl, program, 'texture');
 
+  var step        = GL.Program.Uniform(gl, program, 'step');
   var tileSize    = GL.Program.Uniform(gl, program, 'tileSize');
   var mapSize     = GL.Program.Uniform(gl, program, 'mapSize');
   var atlasSize   = GL.Program.Uniform(gl, program, 'atlasSize');
@@ -904,6 +963,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   var overlay     = GL.Program.Uniform(gl, program, 'overlay');
   var objects     = GL.Program.Uniform(gl, program, 'objects');
   var obstruction = GL.Program.Uniform(gl, program, 'obstruction');
+  var transitions = GL.Program.Uniform(gl, program, 'transitions');
 
 
   var geometry = [
@@ -950,13 +1010,13 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     var target = pos - shift;
     var bitmask = obstruction.data[target * 4 + 3];
     var result = bitmask | value;
-    var alpha = terrain.data[i * 4] - diff * 2;
+    var alpha = terrain.data[i * 4 + 3] - (diff - 1) * 2;
     obstruction.data[target * 4 + 3] = result;
-    if (alpha > subterrain.data[pos * 4]) {
-      subterrain.data[pos * 4 + 0] = alpha;
+    if (alpha >= subterrain.data[pos * 4 + 3]) {
+      subterrain.data[pos * 4 + 0] = terrain.data[i * 4 + 0];
       subterrain.data[pos * 4 + 1] = terrain.data[i * 4 + 1];
       subterrain.data[pos * 4 + 2] = terrain.data[i * 4 + 2];
-      subterrain.data[pos * 4 + 3] = terrain.data[i * 4 + 3];
+      subterrain.data[pos * 4 + 3] = alpha;
     }
   }
 
@@ -972,24 +1032,25 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       // B: water
       terrain.data[i * 4 + 2] = matchRegion(terrain, i, options.mapSize, water) && 1;
       // A: level
-      terrain.data[i * 4 + 3] = 128;
-      if (Math.random() > 0.9 || matchRegion(terrain, i, options.mapSize, mountians)) {
+      terrain.data[i * 4 + 3] = 127;
+      var regioned = matchRegion(terrain, i, options.mapSize, mountians);
+      if (Math.random() > 0.9 || regioned) {
         if (location.search.indexOf('flat') > -1)
-          var height = 0;
+          var height = 1;
         else
-          var height = Math.floor(random2() * 4);
+          var height = Math.floor(random2() * (regioned ? 0 : 2)) + 1;
         terrain.data[i * 4 + 3] += height * 2;
-        //for (var k = 0; k <= height; k++) {
-        //  var pos = i - k * options.mapSize - k;
-        //  var diff = height - k;
-        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 2, 2, 64);
-        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 2, 32);
-        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 2, 1, 16);
-        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 1, 8);
-        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 0, 1, 4);
-        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 0, 2);
-        //  markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 0, 0, 1);
-        //}
+        for (var k = 0; k < height; k++) {
+          var pos = i - k * options.mapSize - k;
+          var diff = height - k;
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 2, 2, 64);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 2, 32);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 2, 1, 16);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 1, 8);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 0, 1, 4);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 0, 2);
+          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 0, 0, 1);
+        }
       }
     }
     return {
@@ -1010,8 +1071,10 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   ];
 
   var mountians = [
-    //[8, 14, 1, 1],
-    //[10, 20, 0, 1]
+    [8, 14, 1, 1],
+    [10, 20, 0, 1],
+    [11, 19, 0, 1],
+    [12, 21, 0, 0]
   ]
 
   var matchRegion = function(data, i, width, regions) {
@@ -1034,105 +1097,8 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       data.data[i * 4 + 1] = Math.floor(Math.random() * 2);
       // water
       data.data[i * 4 + 2] = matchRegion(data, i, options.mapSize, water) ? 1 : 0;
-      // water mask
-      setPattern(data, i, options.mapSize, 3, true)
     }
     return data;
-  }
-
-  // patterns for auto-tiling
-  // matches tiles against transitions spritesheet
-  var patterns = [
-    // 4 sides
-    [2 | 8 | 16 | 64, 9],
-    // 3 sides
-    [2 | 16 | 64, 21],
-    [8 | 16 | 64, 22],
-    [8 | 2 | 64, 23],
-    [8 | 16 | 2, 24],
-    // 2 sides + corner
-    [8 | 64 | 4, 17],
-    [8 | 2 | 128, 18],
-    [2 | 16 | 32, 19],
-    [1 | 64 | 16, 20],
-    // 2 sides
-    [64 | 8, 1],
-    [8 | 2, 3],
-    [2 | 16, 5],
-    [64 | 16, 7],
-    [2 | 64, 15],
-    [8 | 16, 16],
-    // 1 side
-    [8, 2],
-    [2, 4],
-    [16, 6],
-    [64, 8],
-    // 4 corners
-    [1 | 4 | 32 | 128, 43],
-    // 2 corners
-    [32 | 1, 33],
-    [1 | 4, 34],
-    [4 | 128, 35],
-    [32 | 128, 36],
-    [1 | 128, 37],
-    [32 | 4, 38],
-    // 3 corners
-    [32 | 1 | 128, 39],
-    [32 | 1 | 4, 40],
-    [1 | 4 | 128, 41],
-    [4 | 32 | 128, 42],
-    // 1 corner
-    [32, 11],
-    [1, 12],
-    [4, 13],
-    [128, 14],
-
-  ]
-
-
-  var getPattern = function(data, i, width, raw) {
-    var type = getTerrainType(data, i);
-    var result = 0;
-    if (getTerrainType(data, i - width - 1) < type)
-      result |= 1
-    if (getTerrainType(data, i - width) < type)
-      result |= 2
-    if (getTerrainType(data, i - width + 1) < type)
-      result |= 4
-    if (getTerrainType(data, i + 1) < type)
-      result |= 8
-    if (getTerrainType(data, i + width + 1) < type)
-      result |= 16
-    if (getTerrainType(data, i + width) < type)
-      result |= 32
-    if (getTerrainType(data, i + width - 1) < type)
-      result |= 64
-    if (getTerrainType(data, i - 1) < type)
-      result |= 128
-    if (raw)
-      return result;
-    if (result)
-      for (var i = 0, pattern; pattern = patterns[i++];)
-        if ((result & pattern[0]) == pattern[0])
-          return pattern[1]
-    return 0;
-  }
-
-  var setPattern = function(data, i, width, offset, around) {
-    data.data[i * 4 + offset] = getPattern(data, i, width, false, offset);
-    if (!around) return;
-    setPattern(data, i - width - 1, width, offset)
-    setPattern(data, i - width, width, offset)
-    setPattern(data, i - width + 1, width, offset)
-    setPattern(data, i - 1, width, offset)
-    setPattern(data, i + 1, width, offset)
-    setPattern(data, i + width - 1, width, offset)
-    setPattern(data, i + width, width, offset)
-    setPattern(data, i + width + 1, width, offset)
-  }
-
-  var getTerrainType = function(data, i) {
-    return data.data[i * 4 + 2];
   }
 
   var obstructObject = function(obstruction, i, x, y, channel, value) { 
@@ -1253,6 +1219,8 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   //gl.enable(gl.CULL_FACE);
   //gl.enable(gl.DEPTH_TEST)
   var buffer;
+  var framebuffer;
+  var framebufferTexture;
   var objectsAndObstruction = generateObjectsAndObstruction()
   var terrainAndSubterrain = generateTerrainAndSubterrain()
 
@@ -1276,14 +1244,65 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   var i = 0;
   var limit = 100;//Infinity;
   var repeat = 1;
+  function getFrameBuffer(gl, width, height) {
+    if (framebuffer)
+      return framebuffer;
+    framebuffer = gl.createFramebuffer();
+    framebuffer.width = width;
+    framebuffer.height = height;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+
+    framebufferTexture = GL.Texture(gl, 5, null, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, framebufferTexture, 0);
+
+    var valid = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    switch(valid){
+        case gl.FRAMEBUFFER_UNSUPPORTED:
+            throw 'Framebuffer is unsupported';
+        case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+            throw 'Framebuffer incomplete attachment';
+        case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+            throw 'Framebuffer incomplete dimensions';
+        case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+            throw 'Framebuffer incomplete missing attachment';
+    }
+    console.error(valid)
+
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return framebuffer;
+  }
+  var preparebuffer
+  function prepare(framebuffer) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.viewport(0, 0, framebuffer.width, framebuffer.height);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
   function render() {
     //if (i > 0)
     if (location.search.indexOf('profile') > -1) console.profile(i);
     for (var r = 0; r < repeat; r++) {
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     //console.profile(i);
     // provide texture coordinates for the map.
+
     if (!buffer) {
+      // upload & assign textures
+      GL.Texture(gl, 0, terrainData, true);
+      GL.Texture(gl, 1, subterrainData, true);
+      GL.Texture(gl, 2, overlayData, true);
+      GL.Texture(gl, 3, objectsData, true);
+      GL.Texture(gl, 4, obstructionData, true);
+
+      gl.uniform1i(terrain, 0);
+      gl.uniform1i(subterrain, 1);
+      gl.uniform1i(overlay, 2);
+      gl.uniform1i(objects, 3);
+      gl.uniform1i(obstruction, 4);
+
       buffer = GL.Buffer(gl, 'array', new Float32Array(geometry));
 
       // set meta data
@@ -1298,30 +1317,14 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       gl.enableVertexAttribArray(texture);
       gl.vertexAttribPointer(texture, 2, gl.FLOAT, false, 16, 8);
 
-      // upload & assign textures
-      GL.Texture(gl, 0, terrainData, true);
-      GL.Texture(gl, 1, subterrainData, true);
-      GL.Texture(gl, 2, overlayData, true);
-      GL.Texture(gl, 3, objectsData, true);
-      GL.Texture(gl, 4, obstructionData, true);
-      
-
-      gl.uniform1i(terrain, 0);
-      gl.uniform1i(subterrain, 1);
-      gl.uniform1i(overlay, 2);
-      gl.uniform1i(objects, 3);
-      gl.uniform1i(obstruction, 4);
-      var k = 4;
+      var k = 5;
       for (var name in textures) {
         if (!textures[name].location)
           continue
         k++;
         gl.uniform1i(textures[name].location, k);
         GL.Texture(gl, k, textures[name].image, true)
-
       }
-
-      
     } else {
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
     }
@@ -1334,21 +1337,32 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       gl.uniformMatrix4fv(orientation, false, getOrientation());
       view = null;
     }
+    gl.uniform1i(step, 1);
+    prepare(getFrameBuffer(gl, options.mapSize, options.mapSize));
+    gl.uniform1i(step, 0);
+
+    
+    
     // set resolution
     var h = gl.drawingBufferHeight;
     var w = gl.drawingBufferWidth
     var max = options.mapSize * options.tileSize;
     var total = Math.max(h, w)
     var ratio = w / h;
-    
-    gl.uniform2f(viewport, options.mapSize * options.tileSize * 2, options.mapSize * options.tileSize);
 
+    gl.uniform2f(viewport, options.mapSize * options.tileSize * 2, options.mapSize * options.tileSize);
+    //gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
     gl.viewport(0, 0, w, h);
 
     gl.uniform2f(scroll, 0, 0);
 
+
+    gl.activeTexture(gl.TEXTURE5);
+    gl.bindTexture(gl.TEXTURE_2D, framebufferTexture);
+    gl.uniform1i(transitions, 5);
     // Draw the thing.
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.bindTexture(gl.TEXTURE_2D, null);
   }
     if (location.search.indexOf('profile') > -1) console.profileEnd(i);
     // schedule next frame

@@ -91,6 +91,7 @@ GL.Buffer = function(gl, type, data, method) {
   return buffer;
 }
 
+
 GL.Buffer.types = {
   'array':        'ARRAY_BUFFER',
   'ARRAY_BUFFER': 'ARRAY_BUFFER',
