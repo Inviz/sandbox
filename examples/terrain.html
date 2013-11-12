@@ -73,9 +73,11 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
 
   void main() {
     tile = texture;
-    if (step == 1) {
+    // prepare textures
+    if (step == 1 || step == 2) {
       vec2 pos = texture * 2.0 - 1.0;
       gl_Position = vec4(pos, 0, 1);
+    // render game field
     } else {
       vec2 pos = position;
       pos.y = - pos.y - 0.5;
@@ -167,10 +169,10 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   uniform sampler2D subterrain;
   uniform sampler2D overlay;
   uniform sampler2D objects;
-  uniform sampler2D obstruction;
 
   // prepared textures
   uniform sampler2D transitions;
+  uniform sampler2D obstruction;
 
   // terrain textures and masks
   uniform sampler2D spritesLandscape;
@@ -207,7 +209,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   }
 
   vec2 getPosition(vec2 shift) {
-    return ((tile * mapSize) + shift) / mapSize;
+    return (floor(tile * mapSize) + shift) / mapSize;
   }
 
   float getVariation(vec2 position, float seed) {
@@ -228,7 +230,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     return floor(texture2D(subterrain, position) * 255.0);
   }
 
-  float getTransition(float x, float a, float b, float c, float d, float e, float f, float g, float h) {
+  float checkTransition(float x, float a, float b, float c, float d, float e, float f, float g, float h) {
     // 4 sides
     if (x > b && x > h && x > d && x > f)
       return 9.0;
@@ -335,7 +337,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     return 0.0;
   }
 
-  vec4 getTerrainTransition(vec4 location, vec2 shift) {
+  vec4 getTransition(vec4 location, vec2 shift) {
     vec4 a = getTerrain(shift + vec2(-1, -1));
     vec4 b = getTerrain(shift + vec2(0, -1));
     vec4 c = getTerrain(shift + vec2(1, -1));
@@ -346,16 +348,98 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     vec4 h = getTerrain(shift + vec2(-1, 0));
 
     return vec4(
-      getTransition(location.r, a.r, b.r, c.r, d.r, e.r, f.r, g.r, h.r),
-      getTransition(location.g, a.g, b.g, c.g, d.g, e.g, f.g, g.g, h.g),
-      getTransition(location.b, a.b, b.b, c.b, d.b, e.b, f.b, g.b, h.b),
-      getTransition(location.a, a.a, b.a, c.a, d.a, e.a, f.a, g.a, h.a)
+      checkTransition(location.r, a.r, b.r, c.r, d.r, e.r, f.r, g.r, h.r),
+      checkTransition(location.g, a.g, b.g, c.g, d.g, e.g, f.g, g.g, h.g),
+      checkTransition(location.b, a.b, b.b, c.b, d.b, e.b, f.b, g.b, h.b),
+      checkTransition(location.a, a.a, b.a, c.a, d.a, e.a, f.a, g.a, h.a)
     );
   }
 
   vec4 getPreparedTerrainTransition(vec4 location, vec2 shift) {
     return floor(texture2D(transitions, getPosition(shift)) * 255.0);
   }
+
+  vec4 getObject(vec2 shift) {
+    return floor(texture2D(objects, getPosition(shift)) * 255.0);
+  }
+
+  vec4 getPreparedObtruction(vec2 shift) {
+    return floor(texture2D(obstruction, getPosition(shift)) * 255.0);
+  }
+
+  vec4 getObstruction(vec4 location, vec2 shift) {
+    vec4 result = vec4(0,0,0,0);
+    // RGB channels encode up to 24 sprite obstructions
+    // (originating at different tiles) over a tile
+    if (getObject(shift + vec2(4, 4)).r > 100.0)
+      result.r += 128.0;
+    if (getObject(shift + vec2(3, 4)).r > 100.0)
+      result.r += 64.0;
+    if (getObject(shift + vec2(4, 3)).r > 100.0)
+      result.r += 32.0;
+    if (getObject(shift + vec2(2, 4)).r > 200.0)
+      result.r += 16.0;
+    if (getObject(shift + vec2(3, 3)).r > 100.0)
+      result.r += 8.0;
+    if (getObject(shift + vec2(4, 2)).r > 200.0)
+      result.r += 4.0;
+    if (getObject(shift + vec2(1, 4)).r > 200.0)
+      result.r += 2.0;
+    if (getObject(shift + vec2(2, 3)).r > 100.0)
+      result.r += 1.0;
+
+    if (getObject(shift + vec2(3, 2)).r > 100.0)
+      result.g += 128.0;
+    if (getObject(shift + vec2(4, 1)).r > 200.0)
+      result.g += 64.0;
+    if (getObject(shift + vec2(0, 4)).r > 200.0)
+      result.g += 32.0;
+    if (getObject(shift + vec2(1, 3)).r > 200.0)
+      result.g += 16.0;
+    if (getObject(shift + vec2(2, 2)).r > 100.0)
+      result.g += 8.0;
+    if (getObject(shift + vec2(3, 1)).r > 200.0)
+      result.g += 4.0;
+    if (getObject(shift + vec2(4, 0)).r > 200.0)
+      result.g += 2.0;
+    if (getObject(shift + vec2(0, 3)).r > 200.0)
+      result.g += 1.0;
+
+    if (getObject(shift + vec2(1, 2)).r > 100.0)
+      result.b += 128.0;
+    if (getObject(shift + vec2(2, 1)).r > 100.0)
+      result.b += 64.0;
+    if (getObject(shift + vec2(3, 0)).r > 200.0)
+      result.b += 32.0;
+    if (getObject(shift + vec2(0, 2)).r > 200.0)
+      result.b += 16.0;
+    if (getObject(shift + vec2(1, 1)).r > 0.0)
+      result.b += 8.0;
+    if (getObject(shift + vec2(2, 0)).r > 200.0)
+      result.b += 4.0;
+    if (getObject(shift + vec2(0, 1)).r > 0.0)
+      result.b += 2.0;
+    if (getObject(shift + vec2(1, 0)).r > 0.0)
+      result.b += 1.0;
+
+    // alpha channel for subterrain obstructions
+    if (getSubterrain(shift + vec2(2, 2)).a != 0.0)
+      result.a += 64.0;
+    if (getSubterrain(shift + vec2(1, 2)).a != 0.0)
+      result.a += 32.0;
+    if (getSubterrain(shift + vec2(2, 1)).a != 0.0)
+      result.a += 16.0;
+    if (getSubterrain(shift + vec2(1, 1)).a != 0.0)
+      result.a += 8.0;
+    if (getSubterrain(shift + vec2(0, 1)).a != 0.0)
+      result.a += 4.0;
+    if (getSubterrain(shift + vec2(1, 0)).a != 0.0)
+      result.a += 2.0;
+    if (getSubterrain(shift).a > 0.0) // fixme?
+      result.a += 1.0;
+    return result;
+  }
+
 
   vec4 getColor(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift, vec2 translate) {
     vec2 offset = position * grid;
@@ -372,7 +456,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
 
   // get color of a mask pixel
   // also composes any combination of corners from separate corner sprites
-  vec4 getTransitionColor(vec2 locals, vec2 position, vec2 shift, vec2 translate) {
+  vec4 checkTransitionColor(vec2 locals, vec2 position, vec2 shift, vec2 translate) {
     vec2 coordinates = (tile * mapSize - floor(tile * mapSize));
     float x = position.x;
     float sprite = 0.0;
@@ -567,7 +651,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     vec2 terrain = vec2(variation, location.r - 1.0);
     if (transition.r > 0.0) {
       vec2 mask = vec2(transition.r, 1);
-      vec4 masked = getTransitionColor(locals, mask, here, translate);
+      vec4 masked = checkTransitionColor(locals, mask, here, translate);
       if (masked.a == 0.0) {
         vec4 corner = getCorner(locals, shift, translate, location.r);
         if (corner.r > 0.0)
@@ -585,7 +669,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       return vec4(0, 0, 0, 0);
     if (transition.b > 0.0) {
       vec2 mask = vec2(transition.b, 0);
-      vec4 masked = getTransitionColor(locals, mask, vec2(0, 0), translate);
+      vec4 masked = checkTransitionColor(locals, mask, vec2(0, 0), translate);
       if (!(masked.r == 0.0 && masked.g == 0.0 && masked.b == 0.0 && masked.a == 1.0))
         return masked;
     }
@@ -604,7 +688,8 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     vec4 object = floor(location * 255.0);
     vec2 translate = vec2(0, 0);
 
-    if (object.a > 0.0) {
+    if (object.x > 0.0) {
+      object.xy -= 1.0;
       if (object.x >= 200.0) {
         vec2 grid192x160 = vec2(tileSize * 6.0, tileSize * 5.0);
         object.x -= 200.0;
@@ -636,16 +721,14 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   }
 
   float getZValue(vec2 shift, float heighted) {
-    vec2 now = floor(tile * mapSize + shift);
-    vec2 pos = now / mapSize;
+    vec2 pos = getPosition(shift);
     vec4 location = texture2D(subterrain, pos);
     if (location.r == 0.0 && location.g == 0.0 && location.b == 0.0 && location.a == 0.0)
       location = texture2D(terrain, pos);
     float rating = location.a - 0.5;
     float height = floor(rating * 128.0);
-    now += vec2(height, height) - heighted; 
-    vec2 origin = now / mapSize;
-    return location.a + floor((origin.y * mapSize.y + origin.x) * mapSize.x * mapSize.y);
+    vec2 origin = getPosition(shift + vec2(height, height) - heighted);
+    return location.a + floor(origin.y * mapSize.y + origin.x) * mapSize.x * mapSize.y;
   }
 
   vec4 getZColor(sampler2D texture, vec2 locals, vec2 position, vec2 grid, vec2 shift, vec2 translate, vec4 color) {
@@ -730,7 +813,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
         vec4 originTransition = getPreparedTerrainTransition(origin, subshift);
         if (originTransition.a > 0.0) {
           vec2 pos = vec2(originTransition.a, 5.0);
-          color = getTransitionColor(locals, pos, vec2(0, 0), getTranslation(shift));
+          color = checkTransitionColor(locals, pos, vec2(0, 0), getTranslation(shift));
         }
         if (color.a > 0.0) {
           color = getTerrainColor(locals, subshift, origin, originTransition);
@@ -749,12 +832,12 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     if (obstruction.a >= 2.0) {
       obstruction.a -= 2.0;
       vec2 position = vec2(getRandom(getPosition(shift + vec2(1, 0)), 4.0, 1.0), 0);
-      color = getZColor(spritesLandscape, locals, position, grid, vec2(1.0, 0.0), translate, color);
+      color = getZColor(spritesLandscape, locals, position, grid, vec2(1, 0), translate, color);
     }
     if (obstruction.a >= 1.0) {
       obstruction.a -= 1.0;
       vec2 position = vec2(getRandom(getPosition(shift + vec2(0, 0)), 4.0, 1.0), 0);
-      color = getZColor(spritesLandscape, locals, position, grid, vec2(0.0, 0.0), translate, color);
+      color = getZColor(spritesLandscape, locals, position, grid, vec2(0, 0), translate, color);
     }
     return color;
   }
@@ -765,11 +848,9 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   // this function decodes that information
   // and does necessary texture lookups
   vec4 getObstructionColor(vec2 locals, vec2 shift, vec4 location, vec4 transition) {
-    vec2 now = floor(tile * mapSize + shift);
-    vec2 pos = now / mapSize;
     vec4 color = vec4(0, 0, 0, 0);
     vec4 subterrain = vec4(0, 0, 0, 0);
-    vec4 obstruction = floor(texture2D(obstruction, pos) * 255.0);
+    vec4 obstruction = getPreparedObtruction(shift);
     float threshold = 0.0;
     if (obstruction.a > 0.0) {
       subterrain = getSubterrainColor(obstruction, locals, shift, location, transition);
@@ -778,7 +859,6 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
         subterrain.a = 1.0;
       }
     }
-
     // 4th row
     if (obstruction.r >= 128.0) {
       obstruction.r -= 128.0;
@@ -916,9 +996,11 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       gl_FragColor = color;
     }
     if (step == 1) {
-      gl_FragColor = getTerrainTransition(location, shift) / 255.0;
-    } else if (step == 3) {
-      gl_FragColor = vec4(0,1,0,1);
+      gl_FragColor = getTransition(location, shift) / 255.0;
+    } else if (step == 2) {
+      gl_FragColor = getObstruction(location, shift) / 255.0;
+      //if (gl_FragColor.x != 0.0)
+      //  gl_FragColor.a = 1.0;
     }
   }
 </script>
@@ -1004,22 +1086,6 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       })
     }(name)
   }
-
-  var markSubterrain = function(terrain, subterrain, obstruction, i, pos, diff, x, y, value) {
-    var shift = x + y * options.mapSize;
-    var target = pos - shift;
-    var bitmask = obstruction.data[target * 4 + 3];
-    var result = bitmask | value;
-    var alpha = terrain.data[i * 4 + 3] - (diff - 1) * 2;
-    obstruction.data[target * 4 + 3] = result;
-    if (alpha >= subterrain.data[pos * 4 + 3]) {
-      subterrain.data[pos * 4 + 0] = terrain.data[i * 4 + 0];
-      subterrain.data[pos * 4 + 1] = terrain.data[i * 4 + 1];
-      subterrain.data[pos * 4 + 2] = terrain.data[i * 4 + 2];
-      subterrain.data[pos * 4 + 3] = alpha;
-    }
-  }
-
   var generateTerrainAndSubterrain = function() {
     var terrain = getImageData('terrain');
     var subterrain = getImageData('subterrain');
@@ -1043,13 +1109,13 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
         for (var k = 0; k < height; k++) {
           var pos = i - k * options.mapSize - k;
           var diff = height - k;
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 2, 2, 64);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 2, 32);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 2, 1, 16);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 1, 8);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 0, 1, 4);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 1, 0, 2);
-          markSubterrain(terrain, subterrain, obstruction, i, pos, diff, 0, 0, 1);
+          var alpha = terrain.data[i * 4 + 3] - (diff - 1) * 2;
+          if (alpha >= subterrain.data[pos * 4 + 3]) {
+            subterrain.data[pos * 4 + 0] = terrain.data[i * 4 + 0]
+            subterrain.data[pos * 4 + 1] = terrain.data[i * 4 + 1]
+            subterrain.data[pos * 4 + 2] = terrain.data[i * 4 + 2]
+            subterrain.data[pos * 4 + 3] = alpha
+          }
         }
       }
     }
@@ -1102,68 +1168,25 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   }
 
   var obstructObject = function(obstruction, i, x, y, channel, value) { 
-    var shift = ((y * options.mapSize) + x);
-    var pos = (i - shift) * 4;
-    obstruction.data[pos + channel] |= value
   }
   var generateObject = function(data, obstruction, i, size, x, y) {
     if (size == null)
       var size = Math.floor(Math.random() * 3);
     switch (size) {
       case 0:
-        data.data[i * 4 + 0] = Math.floor(Math.random() * 9);
-        data.data[i * 4 + 1] = Math.floor(Math.random() * 2);
-        obstructObject(obstruction, i, 1, 1, 2, 8);
-        obstructObject(obstruction, i, 0, 1, 2, 2);
-        obstructObject(obstruction, i, 1, 0, 2, 1);
+        data.data[i * 4 + 0] = Math.floor(Math.random() * 9) + 1;
+        data.data[i * 4 + 1] = Math.floor(Math.random() * 2) + 1;
 
         break;
       case 1:
-        data.data[i * 4 + 0] = (x != null ? x : Math.floor(Math.random() * 6)) + 100;
-        data.data[i * 4 + 1] = y != null ? y : Math.floor(Math.random() * 1);
-        obstructObject(obstruction, i, 4, 4, 0, 128);
-        obstructObject(obstruction, i, 3, 4, 0, 64);
-        obstructObject(obstruction, i, 4, 3, 0, 32);
-        obstructObject(obstruction, i, 3, 3, 0, 8);
-        obstructObject(obstruction, i, 2, 3, 0, 1);
-        obstructObject(obstruction, i, 3, 2, 1, 128);
-        obstructObject(obstruction, i, 2, 2, 1, 8);
-        obstructObject(obstruction, i, 1, 2, 2, 128);
-        obstructObject(obstruction, i, 2, 1, 2, 64);
-        obstructObject(obstruction, i, 1, 1, 2, 8);
-        obstructObject(obstruction, i, 0, 1, 2, 2);
-        obstructObject(obstruction, i, 1, 0, 2, 1);
+        data.data[i * 4 + 0] = (x != null ? x : Math.floor(Math.random() * 6)) + 100 + 1;
+        data.data[i * 4 + 1] = (y != null ? y : Math.floor(Math.random() * 1)) + 1;
         break;
       case 2:
-        data.data[i * 4 + 0] = (x != null ? x : Math.floor(Math.random() * 2)) + 200;
-        data.data[i * 4 + 1] = y != null ? y : Math.floor(Math.random() * 1);
-        obstructObject(obstruction, i, 4, 4, 0, 128);
-        obstructObject(obstruction, i, 3, 4, 0, 64);
-        obstructObject(obstruction, i, 4, 3, 0, 32);
-        obstructObject(obstruction, i, 2, 4, 0, 16);
-        obstructObject(obstruction, i, 3, 3, 0, 8);
-        obstructObject(obstruction, i, 4, 2, 0, 4);
-        obstructObject(obstruction, i, 1, 4, 0, 2);
-        obstructObject(obstruction, i, 2, 3, 0, 1);
-        obstructObject(obstruction, i, 3, 2, 1, 128);
-        obstructObject(obstruction, i, 4, 1, 1, 64);
-        obstructObject(obstruction, i, 0, 4, 1, 32);
-        obstructObject(obstruction, i, 1, 3, 1, 16);
-        obstructObject(obstruction, i, 2, 2, 1, 8);
-        obstructObject(obstruction, i, 3, 1, 1, 4);
-        obstructObject(obstruction, i, 4, 0, 1, 2);
-        obstructObject(obstruction, i, 0, 3, 1, 1);
-        obstructObject(obstruction, i, 1, 2, 2, 128);
-        obstructObject(obstruction, i, 2, 1, 2, 64);
-        obstructObject(obstruction, i, 3, 0, 2, 32);
-        obstructObject(obstruction, i, 0, 2, 2, 16);
-        obstructObject(obstruction, i, 1, 1, 2, 8);
-        obstructObject(obstruction, i, 2, 0, 2, 4);
-        obstructObject(obstruction, i, 0, 1, 2, 2);
-        obstructObject(obstruction, i, 1, 0, 2, 1);
+        data.data[i * 4 + 0] = (x != null ? x : Math.floor(Math.random() * 2)) + 200 + 1;
+        data.data[i * 4 + 1] = (y != null ? y : Math.floor(Math.random() * 1)) + 1;
         break;
     }
-    data.data[i * 4 + 3] = 255;
     return data;
   }
 
@@ -1204,10 +1227,8 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     generateObject(objects, obstruction, 425 + 64 - 2, 2, 1, 0);
     generateObject(objects, obstruction, 425 + 193, 2, 1, 0);
     
-    //for (var i = 0; i < width * height / 5 ; i++) {
-    //  for (var pos; pos = Math.floor(Math.random() * (options.mapSize * options//.mapSize));)
-    //    if (!data.data[pos * 4 + 3])
-    //      break; 
+    //for (var i = 0; i < options.mapSize * options.mapSize / 10 ; i++) {
+    //  var pos = Math.floor(Math.random() * (options.mapSize * options.mapSize))
     //  generateObject(objects, obstruction, pos);
     //}
 
@@ -1219,8 +1240,10 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   //gl.enable(gl.CULL_FACE);
   //gl.enable(gl.DEPTH_TEST)
   var buffer;
-  var framebuffer;
-  var framebufferTexture;
+  var transitionsBuffer;
+  var transitionsTexture;
+  var obstructionBuffer;
+  var obstructionTexture;
   var objectsAndObstruction = generateObjectsAndObstruction()
   var terrainAndSubterrain = generateTerrainAndSubterrain()
 
@@ -1245,40 +1268,41 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   var limit = 100;//Infinity;
   var repeat = 1;
   function getFrameBuffer(gl, width, height) {
-    if (framebuffer)
-      return framebuffer;
-    framebuffer = gl.createFramebuffer();
-    framebuffer.width = width;
-    framebuffer.height = height;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-
-    framebufferTexture = GL.Texture(gl, 5, null, true);
+    var buffer = gl.createFramebuffer();
+    buffer.width = width;
+    buffer.height = height;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, buffer);
+    var texture = GL.Texture(gl, 5, null, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, framebufferTexture, 0);
-
-    var valid = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-    switch(valid){
-        case gl.FRAMEBUFFER_UNSUPPORTED:
-            throw 'Framebuffer is unsupported';
-        case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-            throw 'Framebuffer incomplete attachment';
-        case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
-            throw 'Framebuffer incomplete dimensions';
-        case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-            throw 'Framebuffer incomplete missing attachment';
-    }
-    console.error(valid)
-
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
     gl.bindTexture(gl.TEXTURE_2D, null);
     gl.bindRenderbuffer(gl.RENDERBUFFER, null);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    return framebuffer;
+    return {
+      buffer: buffer,
+      texture: texture
+    }
   }
-  var preparebuffer
-  function prepare(framebuffer) {
-    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-    gl.viewport(0, 0, framebuffer.width, framebuffer.height);
+  var transitionsBuffer
+  function renderTransitionsTexture() {
+    if (!transitionsBuffer) {
+      var fbo = getFrameBuffer(gl, options.mapSize, options.mapSize);
+      transitionsBuffer = fbo.buffer;
+      transitionsTexture = fbo.texture;
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, transitionsBuffer);
+    gl.viewport(0, 0, transitionsBuffer.width, transitionsBuffer.height);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+  function renderObstructionTexture() {
+    if (!obstructionBuffer) {
+      var fbo = getFrameBuffer(gl, options.mapSize, options.mapSize);
+      obstructionBuffer = fbo.buffer;
+      obstructionTexture = fbo.texture;
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, obstructionBuffer);
+    gl.viewport(0, 0, obstructionBuffer.width, obstructionBuffer.height);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
@@ -1295,13 +1319,11 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       GL.Texture(gl, 1, subterrainData, true);
       GL.Texture(gl, 2, overlayData, true);
       GL.Texture(gl, 3, objectsData, true);
-      GL.Texture(gl, 4, obstructionData, true);
 
       gl.uniform1i(terrain, 0);
       gl.uniform1i(subterrain, 1);
       gl.uniform1i(overlay, 2);
       gl.uniform1i(objects, 3);
-      gl.uniform1i(obstruction, 4);
 
       buffer = GL.Buffer(gl, 'array', new Float32Array(geometry));
 
@@ -1317,7 +1339,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       gl.enableVertexAttribArray(texture);
       gl.vertexAttribPointer(texture, 2, gl.FLOAT, false, 16, 8);
 
-      var k = 5;
+      var k = 6;
       for (var name in textures) {
         if (!textures[name].location)
           continue
@@ -1337,8 +1359,10 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       gl.uniformMatrix4fv(orientation, false, getOrientation());
       view = null;
     }
+    gl.uniform1i(step, 2);
+    renderObstructionTexture();
     gl.uniform1i(step, 1);
-    prepare(getFrameBuffer(gl, options.mapSize, options.mapSize));
+    renderTransitionsTexture();
     gl.uniform1i(step, 0);
 
     
@@ -1356,10 +1380,14 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
 
     gl.uniform2f(scroll, 0, 0);
 
-
+    // Attach pre-rendered textures
     gl.activeTexture(gl.TEXTURE5);
-    gl.bindTexture(gl.TEXTURE_2D, framebufferTexture);
+    gl.bindTexture(gl.TEXTURE_2D, transitionsTexture);
     gl.uniform1i(transitions, 5);
+    gl.activeTexture(gl.TEXTURE6);
+    gl.bindTexture(gl.TEXTURE_2D, obstructionTexture);
+    gl.uniform1i(obstruction, 6);
+
     // Draw the thing.
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.bindTexture(gl.TEXTURE_2D, null);
