@@ -32,6 +32,7 @@
 <script src="lib/gl-matrix/vec3.js"></script>
 <script>
 // fps
+if (location.search.indexOf('fps') > -1)
 window.onload = function() {
 eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)%3Bscript.src%3D%27http://github.com/mrdoob/stats.js/raw/master/build/stats.min.js%27%3Bdocument.body.appendChild(script)%3Bscript%3Ddocument.createElement(%27script%27)%3Bscript.innerHTML%3D%27var%20interval%3DsetInterval(function()%7Bif(typeof%20Stats%3D%3D%5C%27function%5C%27)%7BclearInterval(interval)%3Bvar%20stats%3Dnew%20Stats()%3Bstats.domElement.style.position%3D%5C%27fixed%5C%27%3Bstats.domElement.style.left%3D%5C%270px%5C%27%3Bstats.domElement.style.top%3D%5C%270px%5C%27%3Bstats.domElement.style.zIndex%3D%5C%2710000%5C%27%3Bdocument.body.appendChild(stats.domElement)%3BsetInterval(function()%7Bstats.update()%3B%7D,1000/60)%3B%7D%7D,100)%3B%27%3Bdocument.body.appendChild(script)%3B%7D)()%3B"))
 };
@@ -41,17 +42,9 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   body, html {
     padding: 0;
     margin: 0;
+    overflow: hidden;
   }
 
-  canvas {
-    width: 100%;
-    height: 100%;
-  }
-
-  canvas ~ canvas {
-    width: 70px;
-    height: 70px;
-  }
 </style>
 
 <canvas id="canvas"></canvas>
@@ -63,10 +56,12 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
 
   uniform vec2 viewport;
   uniform vec2 scroll;
+  uniform vec2 mapSize;
   uniform mat4 matrix;
   uniform mat4 camera;
   uniform mat4 projection;
   uniform mat4 orientation;
+  uniform float tileSize;
   uniform float step;
 
   varying vec2 pixel;
@@ -81,11 +76,13 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     // render game screen
     } else {
       vec2 pos = position;
+      vec2 field = vec2(mapSize.x * tileSize * 2.0, mapSize.y * tileSize);
       pos.y = - pos.y - 0.5;
-      pixel = ((pos + 1.0) / 2.0 * viewport) + scroll;
+      pixel = ((pos + 1.0) / 2.0 * field);
       pixel.y *= 2.0;
       
       gl_Position = vec4(position, 0, 1) * matrix * projection * camera;
+      gl_Position.xy += scroll / viewport;
     }
   }
 </script>
@@ -798,13 +795,13 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       vec2 position = vec2(getRandom(getPosition(shift + vec2(2, 2)), 4.0, 1.0), 0);
       vec2 subshift = vec2(2, 2);  
       vec4 origin = getSubterrain(subshift);
-      float height = floor((origin.a - 127.0) / 2.0) ;
+      float height = floor((origin.a - 127.0) / 2.0);
       if (height > 0.0) {
         subshift += vec2(height, height) - 1.0;
         origin = getTerrain(subshift);
       }
       vec4 next = getTerrain(subshift - 1.0);
-      if (origin.a != next.a)
+      if (origin.a > next.a)
         color = getZColor(spritesLandscape, locals, position, grid, vec2(2, 2), translate, color);
     }
     if (occlusion.a >= 32.0) {
@@ -818,7 +815,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
         origin = getTerrain(subshift);
       }
       vec4 next = getTerrain(subshift - vec2(0, 1));
-      if (origin.a != next.a)
+      if (origin.a > next.a)
         color = getZColor(spritesLandscape, locals, position, grid, vec2(1, 2), translate, color);
     }
     if (occlusion.a >= 16.0) {
@@ -837,6 +834,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     } 
     if (occlusion.a >= 8.0) {
       occlusion.a -= 8.0;
+      float random = getRandom(getPosition(shift + vec2(1, 1)), 4.0, 1.0);
       if (color.a == 0.0) {
         vec2 subshift = vec2(1,1);
         vec4 origin = getSubterrain(subshift);
@@ -847,16 +845,15 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
         }
         vec4 originTransition = getPreparedTerrainTransition(origin, subshift);
         if (originTransition.a > 0.0) {
-          vec2 pos = vec2(originTransition.a, 5.0);
+          vec2 pos = vec2(originTransition.a, 5.0 + (random > 1.0 ? 1.0 : 0.0));
           color = checkTransitionColor(locals, pos, vec2(0, 0), getTranslation(shift));
         }
-        if (color.a > 0.0) {
+        if (color.a > 0.0 || originTransition.a == 0.0)
           color = getTerrainColor(locals, subshift, origin, originTransition);
-        }
         if (color.a > 0.0)
           color.a = getZValue(vec2(1,1), 1.0);
       }
-      vec2 position = vec2(getRandom(getPosition(shift + vec2(1, 1)), 4.0, 1.0), 0);
+      vec2 position = vec2(random, 0);
       color = getZColor(spritesLandscape, locals, position, grid, vec2(1, 1), translate, color);
     }
     if (occlusion.a >= 4.0) {
@@ -1044,12 +1041,15 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   var seed = parseFloat(location.search.split('seed=')[1]) || Math.random();
   var options = {
     zoom: 2,
-    mapSize: 32,
+    mapSize: 128,
     tileSize: 32,
     flat: location.search.indexOf('flat') > -1,
     objects: parseFloat(location.search.split('objects=')[1]) || 100,
     maxheight: parseFloat(location.search.split('maxheight=')[1]) || 4,
-    seed: seed
+    seed: seed,
+    surface: location.search.indexOf('surface') > -1,
+    limit: parseFloat(location.search.split('limit=')[1]) || Infinity,
+    profile: parseFloat(location.search.split('profile=')[1])
   };
   
   Math.seedrandom(seed)
@@ -1121,10 +1121,23 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
         }
         loading.pop();
         if (!loading.length)
-          render()
+          start()
       })
     }(name)
   }
+
+  var start = function() {
+    render()
+    if (options.profile) {
+      console.profile('render ' + options.profile + ' frames');
+      for (var i = 0; i < options.profile; i++) {
+        render()
+        //gl.finish()
+      }
+      console.profileEnd('render ' + options.profile + ' frames');
+    }
+  }
+
   var generateTerrainAndSubterrain = function() {
     var terrain = getImageData('terrain');
     var subterrain = getImageData('subterrain');
@@ -1139,10 +1152,10 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
       terrain.data[i * 4 + 3] = 127;
       var regioned = matchRegion(terrain, i, options.mapSize, mountians);
       if (!options.flat)
-      if (Math.random() > 0.9 || regioned) {
+      //if (Math.random() > 0.2 || regioned) {
         var height = Math.floor(random2() * (regioned ? 0 : options.maxheight)) + 1;
         terrain.data[i * 4 + 3] += height * 2;
-        for (var k = 0; k < height; k++) {
+        for (var k = options.surface ? height - 1 : 0; k < height; k++) {
           var pos = i - k * options.mapSize - k;
           var diff = height - k;
           var alpha = terrain.data[i * 4 + 3] - (diff - 1) * 2;
@@ -1153,7 +1166,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
             subterrain.data[pos * 4 + 3] = alpha
           }
         }
-      }
+      //}
     }
     return {
       terrain: terrain,
@@ -1272,6 +1285,8 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   var occlusionBuffer;
   var occlusionTexture;
 
+  var requestedAnimation;
+
   var terrainAndSubterrain = generateTerrainAndSubterrain()
   var terrainData = terrainAndSubterrain.terrain;
   var subterrainData = terrainAndSubterrain.subterrain;
@@ -1287,9 +1302,9 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   var view = true
   window.onresize = function() {
     view = true;
+    render();
   }
   var i = 0;
-  var limit = 100;//Infinity;
   var repeat = 1;
   function getFrameBuffer(gl, width, height) {
     var buffer = gl.createFramebuffer();
@@ -1332,9 +1347,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
   }
   function render() {
     //if (i > 0)
-    if (location.search.indexOf('profile') > -1) console.profile(i);
     for (var r = 0; r < repeat; r++) {
-    //console.profile(i);
     // provide texture coordinates for the map.
 
     if (!buffer) {
@@ -1377,10 +1390,13 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     if (view) {
       canvas.width = window.innerWidth * depth;
       canvas.height = window.innerHeight * depth;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
       gl.uniformMatrix4fv(camera, false, getCamera());
       gl.uniformMatrix4fv(matrix, false, getMatrix());
       gl.uniformMatrix4fv(projection, false, getProjection());
       gl.uniformMatrix4fv(orientation, false, getOrientation());
+      gl.uniform2f(viewport, window.innerWidth, window.innerHeight);
       view = null;
     }
     gl.uniform1f(step, 2);
@@ -1398,11 +1414,10 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     var total = Math.max(h, w)
     var ratio = w / h;
 
-    gl.uniform2f(viewport, options.mapSize * options.tileSize * 2, options.mapSize * options.tileSize);
     //gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
     gl.viewport(0, 0, w, h);
 
-    gl.uniform2f(scroll, 0, 0);
+    gl.uniform2f(scroll, i, 0);
 
     // Attach pre-rendered textures
     gl.activeTexture(gl.TEXTURE5);
@@ -1416,16 +1431,17 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.bindTexture(gl.TEXTURE_2D, null);
   }
-    if (location.search.indexOf('profile') > -1) console.profileEnd(i);
     // schedule next frame
-    if (i < limit)
-      requestAnimationFrame(function() {
-        render()
-      });
+    if (i < options.limit) {
+      cancelAnimationFrame(requestedAnimation);
+      requestedAnimation = requestAnimationFrame(render);
+    }
     i++;
+    /*
     for (var name in canvases)
       if (canvases[name].offsetHeight)
         setImageData(name, getImageData(name));
+      */
   }
 
 
@@ -1482,7 +1498,7 @@ eval(unescape("(function()%7Bvar%20script%3Ddocument.createElement(%27script%27)
     var matrix = mat4.create()
 
     // scale by ratio
-    // mat4.scale(matrix, matrix, [ (mapImage.width / mapImage.height), 1, 1])
+    // mat4.scale(matrix, matrix, [ (mapSize:Image.width / mapImage.height), 1, 1])
 
     // scale map up, to make units equal device pixels
     var ratio = (options.mapSize * options.tileSize / window.innerHeight) * options.zoom// * 1.4
