@@ -72,40 +72,6 @@ GL.Program = function(gl, shaders, attributes, locations) {
   return program;
 };
 
-GL.Program.Attribute = function(gl, program, name) {
-  return gl.getAttribLocation(program, name);
-}
-
-GL.Program.Uniform = function(gl, program, name) {
-  return gl.getUniformLocation(program, name);
-}
-
-GL.Buffer = function(gl, type, data, method) {
-  type = gl[GL.Buffer.types[type]];
-  method = gl[GL.Buffer.methods[method]];
-
-  var buffer = gl.createBuffer();
-  gl.bindBuffer(type, buffer);
-  if (data != null)
-    gl.bufferData(type, data, method);
-  return buffer;
-}
-
-
-GL.Buffer.types = {
-  'array':        'ARRAY_BUFFER',
-  'ARRAY_BUFFER': 'ARRAY_BUFFER',
-  'array_buffer': 'ARRAY_BUFFER',
-  'undefined':    'ARRAY_BUFFER'
-}
-
-GL.Buffer.methods = {
-  'static_draw': 'STATIC_DRAW',
-  'STATIC_DRAW': 'STATIC_DRAW',
-  'static':      'STATIC_DRAW',
-  'undefined':   'STATIC_DRAW'
-}
-
 GL.Texture = function(gl, index, image, wrap) {
   var old = this != GL && this != window
   var texture = old ? this : gl.createTexture();
