@@ -582,18 +582,6 @@ document.body.appendChild( stats.domElement );
     return getColor(spritesTransitions, locals, position, grid, vec2(0, 0), translate);
   }
 
-  vec2 getTranslation(vec2 shift) {
-    vec2 coordinates = getCoordinates();
-    vec2 translate = vec2(0,0);
-    float pixel = 1.0 - 1.0 / tileSize;
-    if ((coordinates.x >= pixel && coordinates.y >=  1.0 / tileSize / 2.0) 
-    || (coordinates.y >= pixel && coordinates.x >= 1.0 / tileSize / 2.0) )
-      translate.y -= 1.0;
-
-
-    return translate;
-  }
-
   // dither neighbhour terrain textures
   vec4 getBestCorner(vec2 pos, float variation, vec2 first, vec2 second, vec2 third, bool a, bool b, bool c) {
     float results = 0.0;
@@ -718,7 +706,7 @@ document.body.appendChild( stats.domElement );
   }
 
   vec4 getTerrainColor(vec2 locals, vec2 shift, vec4 location, vec4 transition) {
-    vec2 translate = getTranslation(shift);
+    vec2 translate = vec2(0,0);
     vec2 grid = vec2(tileSize * 2.0, tileSize);
     vec2 here = vec2(0, 0);
     float variation = getRandom(getPosition(shift), 4.0, 1.0);
@@ -738,7 +726,7 @@ document.body.appendChild( stats.domElement );
   }
 
   vec4 getOverlayColor(vec2 locals, vec2 shift, vec4 location, vec4 transition) {
-    vec2 translate = getTranslation(shift);
+    vec2 translate = vec2(0,0);
     if (location.b == 0.0)
       return vec4(0, 0, 0, 0);
     if (transition.b > 0.0) {
@@ -1459,7 +1447,7 @@ document.body.appendChild( stats.domElement );
         if (transition.a != 0.0) {
           float mask = getMask(transition.a);
           vec2 pos = vec2(mask, 5.0 + (random > 1.0 ? 1.0 : 0.0));
-          transitioned = getTransitionedColor(locals, pos, vec2(0, 0), getTranslation(shift));
+          transitioned = getTransitionedColor(locals, pos, vec2(0, 0), vec2(0,0));
         }
         if (transitioned.a > 0.0 || transition.a == 0.0) {
           transitioned = getOverlayColor(locals, shift, location, transition);
