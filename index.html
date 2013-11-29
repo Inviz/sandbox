@@ -26,6 +26,7 @@
 <script src="data/Items.js"></script>
 -->
 <script src="lib/Seed.js"></script>
+<script src="lib/Noise.js"></script>
 <script src="lib/gl-matrix/common.js"></script>
 <script src="lib/gl-matrix/mat4.js"></script>
 <script src="lib/gl-matrix/vec3.js"></script>
@@ -164,10 +165,10 @@ document.body.appendChild( stats.domElement );
     return result;
   }
 
-  vec4 getLocation(vec2 shift) {
+  vec4 getLocation(float alpha, vec2 shift) {
     vec4 sub = get(subterrain, shift);
     vec4 location = get(terrain, shift);
-    if (sub.r > 0.0)
+    if (sub.r > 0.0 && location.a != alpha)
       location.rgb = sub.rgb;
     return location;
   }
@@ -301,15 +302,15 @@ document.body.appendChild( stats.domElement );
         subobject = 1;
     }
 
-    vec4 x = getLocation(vec2(0, 0));
-    vec4 a = getLocation(vec2(-1, 1));
-    vec4 b = getLocation(vec2(-1, 0));
-    vec4 c = getLocation(vec2(-1, -1));
-    vec4 d = getLocation(vec2(0, -1));
-    vec4 e = getLocation(vec2(1, -1));
-    vec4 f = getLocation(vec2(1, 0));
-    vec4 g = getLocation(vec2(1, 1));
-    vec4 h = getLocation(vec2(0, 1));
+    vec4 x = get(terrain, vec2(0, 0));
+    vec4 a = getLocation(x.a, vec2(-1, 1));
+    vec4 b = getLocation(x.a, vec2(-1, 0));
+    vec4 c = getLocation(x.a, vec2(-1, -1));
+    vec4 d = getLocation(x.a, vec2(0, -1));
+    vec4 e = getLocation(x.a, vec2(1, -1));
+    vec4 f = getLocation(x.a, vec2(1, 0));
+    vec4 g = getLocation(x.a, vec2(1, 1));
+    vec4 h = getLocation(x.a, vec2(0, 1));
     result.a = encodeReverseTransition(x.a, a.a, b.a, c.a, d.a, e.a, f.a, g.a, h.a);
     /*
     if (get(subterrain, vec2(0, 0)).r > 0.0)
@@ -321,15 +322,15 @@ document.body.appendChild( stats.domElement );
   }
 
   vec4 getTransition() {
-    vec4 x = getLocation(vec2(0, 0));
-    vec4 a = getLocation(vec2(-1, 1));
-    vec4 b = getLocation(vec2(-1, 0));
-    vec4 c = getLocation(vec2(-1, -1));
-    vec4 d = getLocation(vec2(0, -1));
-    vec4 e = getLocation(vec2(1, -1));
-    vec4 f = getLocation(vec2(1, 0));
-    vec4 g = getLocation(vec2(1, 1));
-    vec4 h = getLocation(vec2(0, 1));
+    vec4 x = get(terrain, vec2(0, 0));
+    vec4 a = getLocation(x.a, vec2(-1, 1));
+    vec4 b = getLocation(x.a, vec2(-1, 0));
+    vec4 c = getLocation(x.a, vec2(-1, -1));
+    vec4 d = getLocation(x.a, vec2(0, -1));
+    vec4 e = getLocation(x.a, vec2(1, -1));
+    vec4 f = getLocation(x.a, vec2(1, 0));
+    vec4 g = getLocation(x.a, vec2(1, 1));
+    vec4 h = getLocation(x.a, vec2(0, 1));
 
     return vec4(
       encodeTransition(x.r, a.r, b.r, c.r, d.r, e.r, f.r, g.r, h.r),
@@ -1582,10 +1583,9 @@ document.body.appendChild( stats.domElement );
         0
       ]
       var regioned = matchRegion(terrain, i, options.mapSize, mountians);
-      if (!options.flat && (Math.random() > 0.8 || regioned))
-        var height = Math.floor(random2() * (regioned ? 0 : options.maxheight));
-      else
-        var height = 0;
+      var x = i % options.mapSize;
+      var y = Math.floor(i / options.mapSize);
+      var height = Math.floor((Noise(x / 15, y / 15) / 2 + 1) * options.maxheight);
       for (var k = options.surface ? height : 0; k <= height; k++) {
         var pos = (i - k * options.mapSize - k) * 4;
 
@@ -1599,7 +1599,7 @@ document.body.appendChild( stats.domElement );
         terrain.data[pos + 1] = values[1]
         terrain.data[pos + 2] = values[2]
         terrain.data[pos + 3] = values[3] + k * 2;
-        if (k == height && Math.random() > 0.95) {
+        if (k == height && Math.random() > 0.85) {
           generateObject(objects, pos, values[3] + k * 2);
         }
       }
