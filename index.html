@@ -1444,20 +1444,18 @@ document.body.appendChild( stats.domElement );
       float random = getRandom(getPosition(shift), 4.0, 1.0);
       vec4 transitioned = vec4(0,0,0,0);
       vec4 object = get(objects, shift);
-      bool objected = false;
       if (object.r > 0.0) {
         float objectIndex = getZIndex(object.a, shift);
         if (color.a < 1.0 || objectIndex > z) {
           vec4 obj = getObjectColor(object, locals, shift);
           if (obj.a > 0.0) {
-            if (obj.a == 1.0 || objectIndex > index)
-              objected = true;
             color = blend(color, obj, objectIndex, z);
-            z = objectIndex;
+            if (objectIndex > z)
+              z = objectIndex;
           }
         }
       }
-      if (color.a < 1.0 || !objected) {
+      if (color.a < 1.0 || index > z) {
         if (transition.a != 0.0) {
           float mask = getMask(transition.a);
           vec2 pos = vec2(mask, 5.0 + (random > 1.0 ? 1.0 : 0.0));
