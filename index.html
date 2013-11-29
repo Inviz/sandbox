@@ -1531,10 +1531,13 @@ document.body.appendChild( stats.domElement );
     'spritesTerrain':     'examples/sprites/terrain.png',
     'spritesLandscape':   'examples/sprites/landscape.png',
     'spritesTransitions': 'examples/sprites/transitions.png',
-    'sprites64x64':       'examples/sprites/sprites64x64.png',
-    'sprites64x160':      'examples/sprites/sprites64x160.png',
-    'sprites192x160':     'examples/sprites/sprites192x160.png'
   };
+
+  if (location.search.indexOf('notextures') == -1) {
+    Textures['sprites64x64']   = 'examples/sprites/sprites64x64.png'
+    Textures['sprites64x160']  = 'examples/sprites/sprites64x160.png'
+    Textures['sprites192x160'] = 'examples/sprites/sprites192x160.png'
+  }
 
 
   var textures = {};
