@@ -40,9 +40,9 @@ GL.Shader.types = {
   'undefined':           'FRAGMENT_SHADER'
 }
 
-GL.Script = function(gl, id) {
+GL.Script = function(gl, id, callback) {
   var script = document.getElementById(id);
-  return GL.Shader(gl, script.type, script.text)
+  return GL.Shader(gl, script.type, callback && callback(script.text) || script.text)
 }
 
 GL.Program = function(gl, shaders, attributes, locations) {
@@ -72,7 +72,7 @@ GL.Program = function(gl, shaders, attributes, locations) {
   return program;
 };
 
-GL.Texture = function(gl, index, image, wrap) {
+GL.Texture = function(gl, index, image, wrap, alias) {
   var old = this != GL && this != window
   var texture = old ? this : gl.createTexture();
   if (index != null) {

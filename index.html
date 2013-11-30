@@ -21,7 +21,7 @@
 <script src="data/Properties.js"></script>
 <script src="data/Quests.js"></script>
 <script src="data/Resources.js"></script>
-<script src="data/Actions.js"></script>
+<script src="datasta/Actions.js"></script>
 <script src="data/Creatures.js"></script>
 <script src="data/Items.js"></script>
 -->
@@ -50,6 +50,7 @@ stats.domElement.style.top = '0px';
 document.body.appendChild( stats.domElement );
 
 </script>
+
 <style>
 
   body, html {
@@ -60,10 +61,10 @@ document.body.appendChild( stats.domElement );
 
 </style>
 
-<canvas id="canvas"></canvas>
+<canvas id="canvas" width="512" height="512"></canvas>
 <script id="2d-vertex-shader" type="x-shader/x-vertex">
   attribute vec2 position; // -1..1
-  attribute vec2 texture;  //  0..1
+  //attribute vec2 texture;  //  0..1
 
   varying vec2 tile;
 
@@ -104,7 +105,11 @@ document.body.appendChild( stats.domElement );
   }
 </script>
 
+
+
 <script id="2d-computer-shader" type="x-shader/x-fragment">
+  // precomputes sprite data 
+
   precision lowp float;
 
   uniform sampler2D terrain;
@@ -179,128 +184,38 @@ document.body.appendChild( stats.domElement );
     int subobject = 0;
     // RGB channels encode up to 24 sprite occlusions
     // (originating at different tiles) over given tile
-    if (get(objects, vec2(4, 4)).r > 100.0) {
-      result.r += 128.0;
-      if (get(subobjects, vec2(4, 4)).r > 100.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(3, 4)).r > 100.0) {
-      result.r += 64.0;
-      if (get(subobjects, vec2(3, 4)).r > 100.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(4, 3)).r > 100.0) {
-      result.r += 32.0;
-      if (get(subobjects, vec2(4, 3)).r > 100.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(2, 4)).r > 200.0) {
-      result.r += 16.0;
-      if (get(subobjects, vec2(2, 4)).r > 200.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(3, 3)).r > 100.0) {
-      result.r += 8.0;
-      if (get(subobjects, vec2(3, 3)).r > 100.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(4, 2)).r > 200.0) {
-      result.r += 4.0;
-      if (get(subobjects, vec2(4, 2)).r > 200.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(1, 4)).r > 200.0) {
-      result.r += 2.0;
-      if (get(subobjects, vec2(1, 4)).r > 200.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(2, 3)).r > 100.0) {
-      result.r += 1.0;
-      if (get(subobjects, vec2(2, 3)).r > 100.0)
-        subobject = 1;
-    }
-
-    if (get(objects, vec2(3, 2)).r > 100.0) {
-      result.g += 128.0;
-      if (get(subobjects, vec2(3, 2)).r > 100.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(4, 1)).r > 200.0) {
-      result.g += 64.0;
-      if (get(subobjects, vec2(4, 1)).r > 200.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(0, 4)).r > 200.0) {
-      result.g += 32.0;
-      if (get(subobjects, vec2(0, 4)).r > 200.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(1, 3)).r > 200.0) {
-      result.g += 16.0;
-      if (get(subobjects, vec2(1, 3)).r > 200.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(2, 2)).r > 100.0) {
-      result.g += 8.0;
-      if (get(subobjects, vec2(2, 2)).r > 100.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(3, 1)).r > 200.0) {
-      result.g += 4.0;
-      if (get(subobjects, vec2(3, 1)).r > 200.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(4, 0)).r > 200.0) {
-      result.g += 2.0;
-      if (get(subobjects, vec2(4, 0)).r > 200.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(0, 3)).r > 200.0) {
-      result.g += 1.0;
-      if (get(subobjects, vec2(0, 3)).r > 200.0)
-        subobject = 1;
-    }
-
-    if (get(objects, vec2(1, 2)).r > 100.0) {
-      result.b += 128.0;
-      if (get(subobjects, vec2(1, 2)).r > 100.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(2, 1)).r > 100.0) {
-      result.b += 64.0;
-      if (get(subobjects, vec2(2, 1)).r > 100.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(3, 0)).r > 200.0) {
-      result.b += 32.0;
-      if (get(subobjects, vec2(3, 0)).r > 200.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(0, 2)).r > 200.0) {
-      result.b += 16.0;
-      if (get(subobjects, vec2(0, 2)).r > 200.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(1, 1)).r > 0.0) {
-      result.b += 8.0;
-      if (get(subobjects, vec2(1, 1)).r > 0.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(2, 0)).r > 200.0) {
-      result.b += 4.0;
-      if (get(subobjects, vec2(2, 0)).r > 200.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(0, 1)).r > 0.0) {
-      result.b += 2.0;
-      if (get(subobjects, vec2(0, 1)).r > 0.0)
-        subobject = 1;
-    }
-    if (get(objects, vec2(1, 0)).r > 0.0) {
-      result.b += 1.0;
-      if (get(subobjects, vec2(1, 0)).r > 0.0)
-        subobject = 1;
-    }
+    foreach (
+      r 128.0 4 4 100.0,
+      r 64.0  3 4 100.0,
+      r 32.0  4 3 100.0,
+      r 16.0  2 4 200.0,
+      r 8.0   3 3 100.0,
+      r 4.0   4 2 200.0,
+      r 2.0   1 4 200.0,
+      r 1.0   2 3 100.0,
+      g 128.0 3 2 100.0,
+      g 64.0  4 1 200.0,
+      g 32.0  0 4 200.0,
+      g 16.0  1 3 200.0,
+      g 8.0   2 2 100.0,
+      g 4.0   3 1 200.0,
+      g 2.0   4 0 200.0,
+      g 1.0   0 3 200.0,
+      b 128.0 1 2 100.0,
+      b 64.0  2 1 100.0,
+      b 32.0  3 0 200.0,
+      b 16.0  0 2 200.0,
+      b 8.0   1 1 0.0,
+      b 4.0   2 0 200.0,
+      b 2.0   0 1 0.0,
+      b 1.0   1 0 0.0
+    as $channel, $value, $x, $y, $size)
+      if (get(objects, vec2($x, $y)).r > $size) {
+        result.$channel += $value;
+        if (get(subobjects, vec2($x, $y)).r > $size)
+          subobject = 1;
+      }
+    endforeach
 
     vec4 x = get(terrain, vec2(0, 0));
     vec4 a = getLocation(x.a, vec2(-1, 1));
@@ -477,46 +392,23 @@ document.body.appendChild( stats.domElement );
   }
 
   float getMask(float value) {
-    bool a = false;
-    if (value >= 128.0) {
-      value -= 128.0;
-      a = true;
-    }
-    bool b = false;
-    if (value >= 64.0) {
-      value -= 64.0;
-      b = true;
-    }
-    bool c = false;
-    if (value >= 32.0) {
-      value -= 32.0;
-      c = true;
-    }
-    bool d = false;
-    if (value >= 16.0) {
-      value -= 16.0;
-      d = true;
-    }
-    bool e = false;
-    if (value >= 8.0) {
-      value -= 8.0;
-      e = true;
-    }
-    bool f = false;
-    if (value >= 4.0) {
-      value -= 4.0;
-      f = true;
-    }
-    bool g = false;
-    if (value >= 2.0) {
-      value -= 2.0;
-      g = true;
-    }
-    bool h = false;
-    if (value >= 1.0) {
-      value -= 1.0;
-      h = true;
-    }
+    // unpack bitmask
+    foreach(
+      a 128.0,
+      b 64.0,
+      c 32.0,
+      d 16.0,
+      e 8.0,
+      f 4.0,
+      g 2.0,
+      h 1.0
+    as $flag, $value)
+      bool $flag = false;
+      if (value >= $value) {
+        value -= $value;
+        $flag = true;
+      } 
+    endforeach
     vec2 coordinates = (tile * mapSize - floor(tile * mapSize));
     if (b && d && f && h)
       return 19.0;
@@ -623,46 +515,24 @@ document.body.appendChild( stats.domElement );
     float thirdSize = tileSize / 1.5;
     float sixthSize = tileSize / 3.0;
     vec2 pos = now / mapSize;
-    bool a = false;
-    if (value >= 128.0) {
-      value -= 128.0;
-      a = true;
-    }
-    bool b = false;
-    if (value >= 64.0) {
-      value -= 64.0;
-      b = true;
-    }
-    bool c = false;
-    if (value >= 32.0) {
-      value -= 32.0;
-      c = true;
-    }
-    bool d = false;
-    if (value >= 16.0) {
-      value -= 16.0;
-      d = true;
-    }
-    bool e = false;
-    if (value >= 8.0) {
-      value -= 8.0;
-      e = true;
-    }
-    bool f = false;
-    if (value >= 4.0) {
-      value -= 4.0;
-      f = true;
-    }
-    bool g = false;
-    if (value >= 2.0) {
-      value -= 2.0;
-      g = true;
-    }
-    bool h = false;
-    if (value >= 1.0) {
-      value -= 1.0;
-      h = true;
-    }
+
+    // unpack transition bitmask
+    foreach(
+      a 128.0,
+      b 64.0,
+      c 32.0,
+      d 16.0,
+      e 8.0,
+      f 4.0,
+      g 2.0,
+      h 1.0
+    as $flag, $value)
+      bool $flag = false;
+      if (value >= $value) {
+        value -= $value;
+        $flag = true;
+      } 
+    endforeach
     if (coordinates.x < 1.0 / 3.0 && coordinates.y < 1.0 / 3.0) {
       vec4 corner = getBestCorner(pos, variation, vec2(-1, -1), vec2(-1, 0), vec2(0, -1), c, b, d);
       if (corner.r > 0.0)
@@ -719,8 +589,6 @@ document.body.appendChild( stats.domElement );
         vec4 corner = getCorner(locals, shift, translate, transition.r);
         if (corner.r > 0.0)
           terrain.y = corner.r - 1.0;
-      } else {
-        //return masked;
       }
     }
     return getColor(spritesTerrain, locals, terrain, grid, vec2(0, 0), translate);
@@ -728,8 +596,6 @@ document.body.appendChild( stats.domElement );
 
   vec4 getOverlayColor(vec2 locals, vec2 shift, vec4 location, vec4 transition) {
     vec2 translate = vec2(0,0);
-    if (location.b == 0.0)
-      return vec4(0, 0, 0, 0);
     if (transition.b > 0.0) {
       vec2 mask = vec2(getMask(transition.b), 0);
       vec4 masked = getTransitionedColor(locals, mask, vec2(0, 0), translate);
@@ -761,9 +627,7 @@ document.body.appendChild( stats.domElement );
   }
 
   vec4 blend(vec4 overlay, vec4 color) {
-    if (overlay.a == 1.0)
-      return overlay;
-    if (color.a == 0.0)
+    if (overlay.a == 1.0 || color.a == 0.0)
       return overlay;
 
     overlay.rgb *= overlay.a;
@@ -810,629 +674,106 @@ document.body.appendChild( stats.domElement );
     vec4 transition = get(data, shift, 1);
     vec4 location   = get(terrain, shift);
     float value = occluded.a;
-    bool a = false;
-    if (value >= 128.0) {
-      value -= 128.0;
-      a = true;
-    }
-    bool b = false;
-    if (value >= 64.0) {
-      value -= 64.0;
-      b = true;
-    }
-    bool c = false;
-    if (value >= 32.0) {
-      value -= 32.0;
-      c = true;
-    }
-    bool d = false;
-    if (value >= 16.0) {
-      value -= 16.0;
-      d = true;
-    }
-    bool e = false;
-    if (value >= 8.0) {
-      value -= 8.0;
-      e = true;
-    }
-    bool f = false;
-    if (value >= 4.0) {
-      value -= 4.0;
-      f = true;
-    }
-    bool g = false;
-    if (value >= 2.0) {
-      value -= 2.0;
-      g = true;
-    }
-    bool h = false;
-    if (value >= 1.0) {
-      value -= 1.0;
-      h = true;
-    }
-    // 4th row
-    if (occluded.r >= 128.0) {
-      occluded.r -= 128.0;
-      vec2 subshift = vec2(4, 4);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.r >= 64.0) {
-      occluded.r -= 64.0; 
-      vec2 subshift = vec2(3, 4);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.r >= 32.0) {
-      occluded.r -= 32.0; 
-      vec2 subshift = vec2(4, 3);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
 
-    // 3d row
-    if (occluded.r >= 16.0) {
-      occluded.r -= 16.0;
-      vec2 subshift = vec2(2, 4);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
+    // check if a pixel is occluded by an object sprite
+    // in one of 24 possible tiles
+    foreach (
+      r 128.0 4 4 100.0,
+      r 64.0  3 4 100.0,
+      r 32.0  4 3 100.0,
+      r 16.0  2 4 200.0,
+      r 8.0   3 3 100.0,
+      r 4.0   4 2 200.0,
+      r 2.0   1 4 200.0,
+      r 1.0   2 3 100.0,
+      g 128.0 3 2 100.0,
+      g 64.0  4 1 200.0,
+      g 32.0  0 4 200.0,
+      g 16.0  1 3 200.0,
+      g 8.0   2 2 100.0,
+      g 4.0   3 1 200.0,
+      g 2.0   4 0 200.0,
+      g 1.0   0 3 200.0,
+      b 128.0 1 2 100.0,
+      b 64.0  2 1 100.0,
+      b 32.0  3 0 200.0,
+      b 16.0  0 2 200.0,
+      b 8.0   1 1 0.0,
+      b 4.0   2 0 200.0,
+      b 2.0   0 1 0.0,
+      b 1.0   1 0 0.0
+    as $channel, $value, $x, $y, $size)
+      if (occluded.$channel >= $value) {
+        occluded.$channel -= $value;
+        vec2 subshift = vec2($x, $y);
+        vec4 object = get(objects, subshift);
+        float index = getZIndex(object.a, subshift);
+        if (color.a < 1.0 || index > z) {
+          vec4 result = getObjectColor(object, locals, subshift);
+          if (color.a < 1.0 && subobjected == 1) {
+            vec4 subobject = get(subobjects, subshift);
+            if (subobject.r > 0.0) {
+              if (color.a == 0.0)
+                index = getZIndex(subobject.a, subshift);
+              result = blend(result, getObjectColor(subobject, locals, subshift));
+            }
+          }
+          if (result.a > 0.0) {
+            color = blend(color, result, index, z);
+            z = index;
           }
         }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
       }
-    }
-    if (occluded.r >= 8.0) {
-      occluded.r -= 8.0;
-      vec2 subshift = vec2(3, 3);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) { 
-        color = blend(color, getObjectColor(object, locals, subshift), index, z);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            z = subobject.a;
-            color = blend(color, getObjectColor(subobject, locals, subshift));
-          }
-        } else {
-          z = index;
-        }
-      }
-    }
-    if (occluded.r >= 4.0) {
-      occluded.r -= 4.0;
-      vec2 subshift = vec2(4, 2);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.r >= 2.0) {
-      occluded.r -= 2.0;
-      vec2 subshift = vec2(1, 4);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.r >= 1.0) {
-      occluded.r -= 1.0;
-      vec2 subshift = vec2(2, 3);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.g >= 128.0) {
-      occluded.g -= 128.0;
-      vec2 subshift = vec2(3, 2);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.g >= 64.0) {
-      occluded.g -= 64.0;
-      vec2 subshift = vec2(4, 1);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
+    endforeach
 
-    // 2nd row
-    if (occluded.g >= 32.0) {
-      occluded.g -= 32.0;
-      vec2 subshift = vec2(0, 4);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.g >= 16.0) {
-      occluded.g -= 16.0;
-      vec2 subshift = vec2(1, 3);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.g >= 8.0) {
-      occluded.g -= 8.0;
-      vec2 subshift = vec2(2, 2);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    
-    if (occluded.g >= 4.0) {
-      occluded.g -= 4.0;
-      vec2 subshift = vec2(3, 1);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.g >= 2.0) {
-      occluded.g -= 2.0;
-      vec2 subshift = vec2(4, 0);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.g >= 1.0) {
-      occluded.g -= 1.0;
-      vec2 subshift = vec2(0, 3);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.b >= 128.0) {
-      occluded.b -= 128.0;
-      vec2 subshift = vec2(1, 2);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.b >= 64.0) {
-      occluded.b -= 64.0;
-      vec2 subshift = vec2(2, 1);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.b >= 32.0) {
-      occluded.b -= 32.0;
-      vec2 subshift = vec2(3, 0);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        color = blend(color, getObjectColor(object, locals, subshift), index, z);
-        if (color.a < 1.0) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            z = subobject.a;
-            color = blend(color, getObjectColor(subobject, locals, subshift));
-          }
-        } else {
-          z = index;
-        }
-      }
-    }
+    // unpack bitmask with landscape transitions
+    foreach(
+      a 128.0,
+      b 64.0,
+      c 32.0,
+      d 16.0,
+      e 8.0,
+      f 4.0,
+      g 2.0,
+      h 1.0
+    as $flag, $value)
+      bool $flag = false;
+      if (value >= $value) {
+        value -= $value;
+        $flag = true;
+      } 
+    endforeach
 
-    // 1st row
-    if (occluded.b >= 16.0) {
-      occluded.b -= 16.0;
-      vec2 subshift = vec2(0, 2);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
+    // check if pixel is occluded by surrounding subterrain
+    foreach (
+      g  1  1,
+      h  0  1,
+      f  1  0,
+      b -1  0,
+      d  0 -1,
+      c -1 -1
+    as $flag, $x, $y)
+      if ($flag) {
+        vec2 subshift = vec2($x, $y);  
+        vec4 origin = get(terrain, subshift);
+        float index = getZIndex(origin.a, subshift);
+        if (color.a < 1.0 || index > z) {
+          vec2 position = vec2(getRandom(getPosition(shift + subshift), 4.0, 1.0), 0);
+          vec4 result = getColor(spritesLandscape, locals, position, grid, subshift + 1.0, translate);
+          if (result.a > 0.0) {
+            color = blend(color, result, index, z);
+            z = index;
           }
         }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
       }
-    }
-    if (occluded.b >= 8.0) {
-      occluded.b -= 8.0;
-      vec2 subshift = vec2(1, 1);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec4 result = getObjectColor(object, locals, subshift);
-        if (color.a < 1.0 && subobjected == 1) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            if (color.a == 0.0)
-              index = getZIndex(subobject.a, subshift);
-            result = blend(result, getObjectColor(subobject, locals, subshift));
-          }
-        }
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (occluded.b >= 4.0) {
-      occluded.b -= 4.0;
-      vec2 subshift = vec2(2, 0);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        color = blend(color, getObjectColor(object, locals, subshift), index, z);
-        if (color.a < 1.0) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            z = subobject.a;
-            color = blend(color, getObjectColor(subobject, locals, subshift));
-          }
-        } else {
-          z = index;
-        }
-      }
-    }
-    if (occluded.b >= 2.0) {
-      occluded.b -= 2.0;
-      vec2 subshift = vec2(0, 1);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        color = blend(color, getObjectColor(object, locals, subshift), index, z);
-        if (color.a < 1.0) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            z = subobject.a;
-            color = blend(color, getObjectColor(subobject, locals, subshift));
-          }
-        } else {
-          z = index;
-        }
-      }
-    }
+    endforeach
 
-    if (occluded.b >= 1.0) {
-      occluded.b -= 1.0;
-      vec2 subshift = vec2(1, 0);
-      vec4 object = get(objects, subshift);
-      float index = getZIndex(object.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        color = blend(color, getObjectColor(object, locals, subshift), index, z);
-        if (color.a < 1.0) {
-          vec4 subobject = get(subobjects, subshift);
-          if (subobject.r > 0.0) {
-            z = subobject.a;
-            color = blend(color, getObjectColor(subobject, locals, subshift));
-          }
-        } else {
-          z = index;
-        }
-      }
-    }
-
-    if (g) {
-      vec2 subshift = vec2(1, 1);  
-      vec4 origin = get(terrain, subshift);
-      float index = getZIndex(origin.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec2 position = vec2(getRandom(getPosition(shift + subshift), 4.0, 1.0), 0);
-        vec4 result = getColor(spritesLandscape, locals, position, grid, subshift + 1.0, translate);
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (h) {
-      vec2 subshift = vec2(0, 1);  
-      vec4 origin = get(terrain, subshift);
-      float index = getZIndex(origin.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec2 position = vec2(getRandom(getPosition(shift + subshift), 4.0, 1.0), 0);
-        vec4 result = getColor(spritesLandscape, locals, position, grid, subshift + 1.0, translate);
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-
-    if (f) {
-      vec2 subshift = vec2(1, 0);  
-      vec4 origin = get(terrain, subshift);
-      float index = getZIndex(origin.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec2 position = vec2(getRandom(getPosition(shift + subshift), 4.0, 1.0), 0);
-        vec4 result = getColor(spritesLandscape, locals, position, grid, subshift + 1.0, translate);
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (b) {
-      vec2 subshift = vec2(-1, 0);  
-      vec4 origin = get(terrain, subshift);
-      float index = getZIndex(origin.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec2 position = vec2(getRandom(getPosition(shift + subshift), 4.0, 1.0), 0);
-        vec4 result = getColor(spritesLandscape, locals, position, grid, subshift + 1.0, translate);
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (d) {
-      vec2 subshift = vec2(0, -1);  
-      vec4 origin = get(terrain, subshift);
-      float index = getZIndex(origin.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec2 position = vec2(getRandom(getPosition(shift + subshift), 4.0, 1.0), 0);
-        vec4 result = getColor(spritesLandscape, locals, position, grid, subshift + 1.0, translate);
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
-    if (c) {
-      vec2 subshift = vec2(-1, -1);  
-      vec4 origin = get(terrain, subshift);
-      float index = getZIndex(origin.a, subshift);
-      if (color.a < 1.0 || index > z) {
-        vec2 position = vec2(getRandom(getPosition(shift + subshift), 4.0, 1.0), 0);
-        vec4 result = getColor(spritesLandscape, locals, position, grid, subshift + 1.0, translate);
-        if (result.a > 0.0) {
-          color = blend(color, result, index, z);
-          z = index;
-        }
-      }
-    }
     float index = getZIndex(location.a, shift);
     if (color.a < 1.0 || index > z) {
       float random = getRandom(getPosition(shift), 4.0, 1.0);
       vec4 transitioned = vec4(0,0,0,0);
       vec4 object = get(objects, shift);
+      // pick color of an object in this tile
       if (object.r > 0.0) {
         float objectIndex = getZIndex(object.a, shift);
         if (color.a < 1.0 || objectIndex > z) {
@@ -1444,18 +785,25 @@ document.body.appendChild( stats.domElement );
           }
         }
       }
+      // pick ground color (if not occluded by object)
       if (color.a < 1.0 || index > z) {
+        // apply landscape transition mask
         if (transition.a != 0.0) {
           float mask = getMask(transition.a);
           vec2 pos = vec2(mask, 5.0 + (random > 1.0 ? 1.0 : 0.0));
           transitioned = getTransitionedColor(locals, pos, vec2(0, 0), vec2(0,0));
         }
+        // pick terrain color with mask applied
         if (transitioned.a > 0.0 || transition.a == 0.0) {
-          transitioned = getOverlayColor(locals, shift, location, transition);
+          if (location.b > 0.0)
+            transitioned = getOverlayColor(locals, shift, location, transition);
+          else
+            transitioned = vec4(0,0,0,0);
           if (transitioned.a < 1.0) {
             transitioned = blend(transitioned, getTerrainColor(locals, shift, location, transition));
           }
         }
+        // pick landscape color
         vec2 position = vec2(random, 0);
         if (transitioned.a < 1.0) {
           transitioned = getColor(spritesLandscape, locals, position, grid, shift + 1.0, translate);
@@ -1464,15 +812,29 @@ document.body.appendChild( stats.domElement );
           color = blend(color, transitioned, index, z);
       }
     }
+    // pick subterrain color
     if (color.a < 1.0) {
       vec4 l = get(subterrain, shift);
       vec4 t = vec4(0,0,0,0);
-      color = blend(color, getOverlayColor(locals, shift, l, t), location.a, z);
+      if (l.b > 0.0)
+        color = blend(color, getOverlayColor(locals, shift, l, t), location.a, z);
       if (color.a < 1.0) {
         color = blend(color, getTerrainColor(locals, shift, l, t), location.a, z);
       }
     }
     gl_FragColor = color;
+  }
+</script>
+
+
+
+<script id="2d-framer-shader" type="x-shader/x-fragment">
+  precision mediump float;
+  uniform sampler2D frame;
+  varying vec2 tile;
+  void main() {
+
+    gl_FragColor = texture2D(frame, tile);
   }
 </script>
 
@@ -1483,6 +845,7 @@ document.body.appendChild( stats.domElement );
     zoom: 2,
     mapSize: parseFloat(location.search.split('size=')[1]) || 256,
     tileSize: parseFloat(location.search.split('tilesize=')[1]) || 32,
+    textureSize: 1280,
     flat: location.search.indexOf('flat') > -1,
     zooming: location.search.indexOf('scrolling') == -1,
     objects: parseFloat(location.search.split('objects=')[1]) || 100,
@@ -1497,14 +860,31 @@ document.body.appendChild( stats.domElement );
   var random2 = Math.random;
   Math.seedrandom(seed)
 
+  // unroll some pseudo loops
+  var unroll = function(source) {
+    return source.replace(/foreach\s*\(\s*([^]*?)\s*as\s*([^]*?)\s*\)\s*([^]*?)endforeach/gm, function(s, table, keys, body) {
+      keys = keys.split(/\s*,\s*/);
+      return table.split(/\s*,\s*/g).map(function(values) {
+        var iteration = body;
+        values.split(/\s+/g).forEach(function(value, i) {
+          while (iteration.indexOf(keys[i]) > -1)
+            iteration = iteration.replace(keys[i], value);
+        })
+        return iteration;
+
+      }).join("\n")
+    })
+  }
+
   var canvas      = document.getElementById('canvas');
   
   var gl          = GL(canvas);
-  var quadVertex  = GL.Script(gl, '2d-vertex-shader')
+  var vertex      = GL.Script(gl, '2d-vertex-shader')
   var isoVertex   = GL.Script(gl, '2d-isometric-vertex-shader')
 
-  var computer    = GL.Program(gl, [quadVertex, GL.Script(gl, '2d-computer-shader')])
-  var program     = GL.Program(gl, [isoVertex,  GL.Script(gl, '2d-fragment-shader')])
+  var computer    = GL.Program(gl, [vertex,     GL.Script(gl, '2d-computer-shader', unroll)])
+  var program     = GL.Program(gl, [isoVertex,  GL.Script(gl, '2d-fragment-shader', unroll)])
+  var framer      = GL.Program(gl, [vertex,     GL.Script(gl, '2d-framer-shader')])
 
   var isometry = new Float32Array([
     //x  y    u  v
@@ -1721,6 +1101,22 @@ document.body.appendChild( stats.domElement );
     view = true;
     render();
   }
+
+  var hidden, visibilityChange; 
+  if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support 
+    hidden = "hidden";
+    visibilityChange = "visibilitychange";
+  } else if (typeof document.mozHidden !== "undefined") {
+    hidden = "mozHidden";
+    visibilityChange = "mozvisibilitychange";
+  } else if (typeof document.msHidden !== "undefined") {
+    hidden = "msHidden";
+    visibilityChange = "msvisibilitychange";
+  } else if (typeof document.webkitHidden !== "undefined") {
+    hidden = "webkitHidden";
+    visibilityChange = "webkitvisibilitychange";
+  }
+
   var i = 0;
   var repeat = 1;
   function getFrameBuffer(gl, width, height) {
@@ -1732,7 +1128,6 @@ document.body.appendChild( stats.domElement );
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
     gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return {
       buffer: buffer,
@@ -1745,10 +1140,11 @@ document.body.appendChild( stats.domElement );
       dataBuffer = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, dataBuffer)
       gl.bufferData(gl.ARRAY_BUFFER, rectangle, gl.STATIC_DRAW);
+    } else {
+      gl.bindBuffer(gl.ARRAY_BUFFER, dataBuffer)
     }
 
     gl.useProgram(computer);
-    gl.bindBuffer(gl.ARRAY_BUFFER, dataBuffer)
     if (!dataFrameBuffer) {
       var fbo = getFrameBuffer(gl, options.mapSize * 2, options.mapSize * 2);
       dataFrameBuffer = fbo.buffer;
@@ -1772,35 +1168,24 @@ document.body.appendChild( stats.domElement );
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
-  function render() {
-    stats.begin();
-    if (!buffer) {
-      // upload & assign textures
-      GL.Texture(gl, 0, terrainData, true);
-      GL.Texture(gl, 1, subterrainData, true);
-      GL.Texture(gl, 2, overlayData, true);
-      GL.Texture(gl, 3, objectsData, true);
 
+
+  var frameBuffer, frameTexture;
+  function renderWorld() {
+    if (!buffer) {
       buffer = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
       gl.bufferData(gl.ARRAY_BUFFER, isometry, gl.STATIC_DRAW);
-
-      var k = 6;
-      for (var name in textures) {
-        if (!textures[name].location)
-          continue
-        k++;
-        gl.uniform1i(textures[name].location, k);
-        GL.Texture(gl, k, textures[name].image, true)
-      }
-      renderPreparedTexture()
+    } else {
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     }
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.useProgram(program);
 
-
     if (view) {
+      var fbo = getFrameBuffer(gl, window.innerWidth, window.innerHeight);
+      frameBuffer = fbo.buffer;
+      frameTexture = fbo.texture;
+
       canvas.width = window.innerWidth * options.depth;
       canvas.height = window.innerHeight * options.depth;
       canvas.style.width = window.innerWidth + 'px';
@@ -1819,7 +1204,7 @@ document.body.appendChild( stats.domElement );
     gl.uniform1i(gl.getUniformLocation(program, 'objects'), 3);
 
     // set meta data
-    gl.uniform2f(gl.getUniformLocation(program, 'textureSize'), textures.spritesTerrain.image.width, textures.spritesTerrain.image.height);
+    gl.uniform2f(gl.getUniformLocation(program, 'textureSize'), options.textureSize, options.textureSize);
     gl.uniform1f(gl.getUniformLocation(program, 'mapSize'), options.mapSize);
     gl.uniform1f(gl.getUniformLocation(program, 'tileSize'), options.tileSize);
 
@@ -1831,17 +1216,6 @@ document.body.appendChild( stats.domElement );
     var texture = gl.getAttribLocation(program, 'texture');
     gl.enableVertexAttribArray(texture);
     gl.vertexAttribPointer(texture, 2, gl.FLOAT, false, 16, 8);
-
-    
-    // set resolution
-    var h = gl.drawingBufferHeight;
-    var w = gl.drawingBufferWidth
-    var max = options.mapSize * options.tileSize;
-    var total = Math.max(h, w)
-    var ratio = w / h;
-
-    //gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-    gl.viewport(0, 0, w, h);
 
     gl.uniform2f(gl.getUniformLocation(program, 'scroll'), options.zooming ? 0 : scroll, 0);
     gl.uniformMatrix4fv(gl.getUniformLocation(program, 'matrix'), false, getMatrix(options.zooming ? scroll : 0));
@@ -1855,12 +1229,60 @@ document.body.appendChild( stats.domElement );
     gl.uniform1i(gl.getUniformLocation(program, 'occlusion'), 6);
 
     // Draw the thing.
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+    gl.viewport(0, 0, window.innerWidth, window.innerHeight);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+  }
+
+  function renderFrame() {
+    gl.bindBuffer(gl.ARRAY_BUFFER, dataBuffer)
+    gl.useProgram(framer);
+    gl.activeTexture(gl.TEXTURE7);
+    gl.bindTexture(gl.TEXTURE_2D, frameTexture);
+    gl.uniform1i(gl.getUniformLocation(framer, 'frame'), 7);
+
+    var position = gl.getAttribLocation(framer, 'position');
+    gl.enableVertexAttribArray(position);
+    gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 8, 0);
+    gl.viewport(0, 0, window.innerWidth * options.depth, window.innerHeight * options.depth);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null)
+  }
 
+  function uploadSprites() {
+    var k = 7;
+    for (var name in textures) {
+      if (!textures[name].location)
+        continue
+      k++;
+      gl.uniform1i(textures[name].location, k);
+      GL.Texture(gl, k, textures[name].image, true)
+    }
+  }
 
-    gl.disableVertexAttribArray(texture);
-    gl.disableVertexAttribArray(position);
+  function uploadData() {
+    // upload & assign textures
+    GL.Texture(gl, 0, terrainData, true);
+    GL.Texture(gl, 1, subterrainData, true);
+    GL.Texture(gl, 2, overlayData, true);
+    GL.Texture(gl, 3, objectsData, true);
+  }
+
+  function render() {
+    if (document[hidden])
+      return;
+    if (!buffer) {
+      gl.useProgram(program)
+      uploadSprites()
+      uploadData()
+      renderPreparedTexture()
+    }
+    stats.begin();
+    renderWorld()
+    renderFrame()
 
     // schedule next frame
     if (i < options.limit) {
