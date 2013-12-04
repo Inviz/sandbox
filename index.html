@@ -825,6 +825,7 @@ document.body.appendChild( stats.domElement );
     vec2 diff = (scroll - scrolled);
     vec2 offset = diff / viewport;
     if ((gl_FragCoord.x < diff.x || gl_FragCoord.x > viewport.x + diff.x) 
+    || (gl_FragCoord.y < diff.y || gl_FragCoord.y > viewport.y + diff.y) 
     || (iteration == 0)) {
       gl_FragColor = render();
     } else {
@@ -1228,8 +1229,8 @@ document.body.appendChild( stats.domElement );
     gl.uniform1f(gl.getUniformLocation(program, 'mapSize'), options.mapSize);
     gl.uniform1f(gl.getUniformLocation(program, 'tileSize'), options.tileSize);
 
-    gl.uniform2f(gl.getUniformLocation(program, 'scroll'), options.zooming ? 0 : scroll, 0);
-    gl.uniform2f(gl.getUniformLocation(program, 'scrolled'), options.zooming ? 0 : lastScroll, 0);
+    gl.uniform2f(gl.getUniformLocation(program, 'scroll'), options.zooming ? 0 : scroll * options.speed, options.zooming ? 0 : scroll);
+    gl.uniform2f(gl.getUniformLocation(program, 'scrolled'), options.zooming ? 0 : lastScroll * options.speed, options.zooming ? 0 : lastScroll);
     gl.uniformMatrix4fv(gl.getUniformLocation(program, 'matrix'), false, getMatrix(options.zooming ? scroll : 0));
 
 
@@ -1320,7 +1321,7 @@ document.body.appendChild( stats.domElement );
     if (scroll > options.range || scroll < -options.range)
       direction = - (window.direction || 1);
     lastScroll = scroll;
-    scroll += (window.direction || 1) * options.speed;
+    scroll += (window.direction || 1) * 1;
     i++;
 
     stats.end();
