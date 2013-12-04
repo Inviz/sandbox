@@ -1185,7 +1185,7 @@ document.body.appendChild( stats.domElement );
   }
 
 
-  var fbo1, fbo2;
+  var fbo1, fbo2, iteration;
   function renderWorld() {
     if (!buffer) {
       buffer = gl.createBuffer();
@@ -1197,6 +1197,7 @@ document.body.appendChild( stats.domElement );
     gl.useProgram(program);
 
     if (view) {
+      iteration = 0;
       if (fbo1)
         deleteFrameBuffer(gl, fbo1);
       if (fbo2)
@@ -1222,7 +1223,7 @@ document.body.appendChild( stats.domElement );
     gl.uniform1i(gl.getUniformLocation(program, 'objects'), 3);
 
     // set meta data
-    gl.uniform1i(gl.getUniformLocation(program, 'iteration'), i);
+    gl.uniform1i(gl.getUniformLocation(program, 'iteration'), iteration);
     gl.uniform2f(gl.getUniformLocation(program, 'textureSize'), options.textureSize, options.textureSize);
     gl.uniform1f(gl.getUniformLocation(program, 'mapSize'), options.mapSize);
     gl.uniform1f(gl.getUniformLocation(program, 'tileSize'), options.tileSize);
@@ -1259,6 +1260,7 @@ document.body.appendChild( stats.domElement );
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.bindTexture(gl.TEXTURE_2D, null);
+    iteration++;
   }
 
   function renderUpscale() {
