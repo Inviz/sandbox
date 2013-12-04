@@ -52,16 +52,13 @@ document.body.appendChild( stats.domElement );
 </script>
 
 <style>
-
   body, html {
     padding: 0;
     margin: 0;
     overflow: hidden;
   }
-
 </style>
 
-<canvas id="canvas" width="512" height="512"></canvas>
 <script id="2d-vertex-shader" type="x-shader/x-vertex">
   attribute vec2 position; // -1..1
   //attribute vec2 texture;  //  0..1
@@ -84,8 +81,6 @@ document.body.appendChild( stats.domElement );
   uniform vec2 scroll;
   uniform mat4 matrix;
   uniform mat4 camera;
-  uniform mat4 projection;
-  uniform mat4 orientation;
   uniform float tileSize;
   uniform float mapSize;
 
@@ -95,13 +90,11 @@ document.body.appendChild( stats.domElement );
   void main() {
     tile = texture;
     vec2 pos = position;
-    vec2 field = vec2(mapSize * tileSize * 2.0, mapSize * tileSize);
     pos.y = - pos.y - 0.5;
-    pixel = ((pos + 1.0) / 2.0 * field);
-    pixel.y *= 2.0;
+    pixel = ((pos + 1.0) / 2.0 * mapSize * tileSize * 2.0);
     
-    gl_Position = vec4(position, 0, 1) * matrix * projection * camera;
-    gl_Position.xy += scroll / viewport;
+    gl_Position = vec4(position, 0, 1) * matrix * camera;
+    gl_Position.xy += scroll / viewport * 2.0;
   }
 </script>
 
@@ -110,7 +103,7 @@ document.body.appendChild( stats.domElement );
 <script id="2d-computer-shader" type="x-shader/x-fragment">
   // precomputes sprite data 
 
-  precision lowp float;
+  precision mediump float;
 
   uniform sampler2D terrain;
   uniform sampler2D subterrain;
@@ -151,13 +144,13 @@ document.body.appendChild( stats.domElement );
   }
   float encodeReverseTransition(float x, float a, float b, float c, float d, float e, float f, float g, float h) {
     float result = 0.0;
-    if (a > 0.0)
+    if (x < a || x > 0.0)
       result += 128.0;
-    if (x < b || (b > 0.0))
+    if (x < b || b > 0.0)
       result += 64.0;
-    if (x < c || (c > 0.0))
+    if (x < c || b > 0.0)
       result += 32.0;
-    if (x < d || (d > 0.0))
+    if (x < d || b > 0.0)
       result += 16.0;
     if (x < e)
       result += 8.0;
@@ -284,10 +277,10 @@ document.body.appendChild( stats.domElement );
   /*
     # Isometric map renderer shader.
 
-    Renders terrain and objects (up to 3x5) and multilevel landscape
-    in one pass. Takes specially crafted images as input, where each
-    pixel represents a tile, and each color channel contains encoded
-    value. 
+    Renders terrain and object sprites (up to 3x5 tiles) and multilevel 
+    landscape in one pass. Takes specially crafted images as input, 
+    where each pixel represents a tile, and each color channel contains
+    encoded value. 
 
     ## Input textures 
 
@@ -311,11 +304,13 @@ document.body.appendChild( stats.domElement );
   uniform sampler2D subterrain;
   uniform sampler2D objects;
   uniform sampler2D subobjects;
-
   uniform sampler2D overlay;
 
   // generated textures (via separate shaders)
   uniform sampler2D data;
+
+  // previous frame
+  uniform sampler2D frame;
 
   // terrain textures and masks
   uniform sampler2D spritesLandscape;
@@ -327,11 +322,13 @@ document.body.appendChild( stats.domElement );
   uniform sampler2D sprites64x160;
   uniform sampler2D sprites192x160;
 
+  uniform vec2 viewport;
   uniform vec2 textureSize;
   uniform float tileSize;
   uniform float mapSize;
-  uniform mat4 projection;
-  uniform mat4 orientation;
+  uniform int iteration;
+  uniform vec2 scroll;
+  uniform vec2 scrolled;
 
   varying vec2 pixel;
   varying vec2 tile;
@@ -382,7 +379,7 @@ document.body.appendChild( stats.domElement );
     vec2 offset = position * grid;
     vec2 start = getPixelPosition(tile + shift / mapSize);
     vec2 diff = ((pixel - locals) - start);
-    vec2 point = locals + diff + translate;
+    vec2 point = floor(locals + diff + translate) + 0.5;
     point.x += (grid.x - tileSize * 2.0) / 2.0;
     point.y += (grid.y - tileSize);
     if (point.x > 0.0 && point.x < grid.x && point.y > 0.0 && point.y < grid.y)
@@ -652,14 +649,14 @@ document.body.appendChild( stats.domElement );
     return pos.y * mapSize + pos.x + height / 255.0;
   }
 
-  void main() {
+  vec4 render() {
+    float z = 0.0;
     vec2 locals = pixel - getPixelPosition(tile);
+    vec4 color = vec4(0, 0, 0, 0);
     vec2 shift = vec2(0, 0);
     vec4 occluded = get(data, shift, 0);
     vec2 grid = vec2(tileSize * 2.0, tileSize * 2.0);
     vec2 translate = vec2(0,0);
-    vec4 color = vec4(0, 0, 0, 0);
-    float z = 0.0;
     int subterrained = 0;/*
     if (occluded.a >= 128.0) {
       occluded.a -= 128.0;
@@ -818,36 +815,48 @@ document.body.appendChild( stats.domElement );
       vec4 t = vec4(0,0,0,0);
       if (l.b > 0.0)
         color = blend(color, getOverlayColor(locals, shift, l, t), location.a, z);
-      if (color.a < 1.0) {
+      if (color.a < 1.0)
         color = blend(color, getTerrainColor(locals, shift, l, t), location.a, z);
-      }
     }
-    gl_FragColor = color;
+    return color;
+  }
+
+  void main() {
+    vec2 diff = (scroll - scrolled);
+    vec2 offset = diff / viewport;
+    if ((gl_FragCoord.x < diff.x || gl_FragCoord.x > viewport.x + diff.x) 
+    || (iteration == 0)) {
+      gl_FragColor = render();
+    } else {
+      gl_FragColor = texture2D(frame, (gl_FragCoord.xy - diff) / viewport);
+    }
   }
 </script>
 
-
-
-<script id="2d-framer-shader" type="x-shader/x-fragment">
+<script id="2d-upscaler-shader" type="x-shader/x-fragment">
   precision mediump float;
   uniform sampler2D frame;
+  uniform float depth;
+  uniform vec2 viewport;
   varying vec2 tile;
   void main() {
-
     gl_FragColor = texture2D(frame, tile);
   }
 </script>
 
+<canvas id="canvas" width="512" height="512"></canvas>
 
 <script>
   var seed = parseFloat(location.search.split('seed=')[1]) || Math.random();
   var options = {
     zoom: 2,
+    speed: parseFloat(location.search.split('speed=')[1]) || 2,
     mapSize: parseFloat(location.search.split('size=')[1]) || 256,
+    range: parseFloat(location.search.split('range=')[1]) || 600,
     tileSize: parseFloat(location.search.split('tilesize=')[1]) || 32,
     textureSize: 1280,
     flat: location.search.indexOf('flat') > -1,
-    zooming: location.search.indexOf('scrolling') == -1,
+    zooming: location.search.indexOf('zooming') > -1,
     objects: parseFloat(location.search.split('objects=')[1]) || 100,
     maxheight: parseFloat(location.search.split('maxheight=')[1]) || 4,
     seed: seed,
@@ -882,9 +891,10 @@ document.body.appendChild( stats.domElement );
   var vertex      = GL.Script(gl, '2d-vertex-shader')
   var isoVertex   = GL.Script(gl, '2d-isometric-vertex-shader')
 
-  var computer    = GL.Program(gl, [vertex,     GL.Script(gl, '2d-computer-shader', unroll)])
+  var computer    = GL.Program(gl, [vertex,     GL.Script(gl, '2d-computer-shader', 
+    unroll)])
   var program     = GL.Program(gl, [isoVertex,  GL.Script(gl, '2d-fragment-shader', unroll)])
-  var framer      = GL.Program(gl, [vertex,     GL.Script(gl, '2d-framer-shader')])
+  var upscaler    = GL.Program(gl, [vertex,     GL.Script(gl, '2d-upscaler-shader')])
 
   var isometry = new Float32Array([
     //x  y    u  v
@@ -1010,6 +1020,7 @@ document.body.appendChild( stats.domElement );
   ]
 
   var scroll = 0;
+  var lastScroll = 0;
 
   var matchRegion = function(data, i, width, regions) {
     var x = i % width
@@ -1080,9 +1091,6 @@ document.body.appendChild( stats.domElement );
 
   var buffer, dataBuffer;
   var transitionsTexture;
-  var occlusionBuffer;
-  var occlusionTexture;
-
   var requestedAnimation;
 
   var map = generateMap()
@@ -1119,12 +1127,12 @@ document.body.appendChild( stats.domElement );
 
   var i = 0;
   var repeat = 1;
-  function getFrameBuffer(gl, width, height) {
+  function getFrameBuffer(gl, width, height, id) {
     var buffer = gl.createFramebuffer();
     buffer.width = width;
     buffer.height = height;
     gl.bindFramebuffer(gl.FRAMEBUFFER, buffer);
-    var texture = GL.Texture(gl, 5, null, true);
+    var texture = GL.Texture(gl, id, null, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
     gl.bindTexture(gl.TEXTURE_2D, null);
@@ -1134,6 +1142,13 @@ document.body.appendChild( stats.domElement );
       texture: texture
     }
   }
+
+
+  function deleteFrameBuffer(gl, fbo) {
+    gl.deleteFramebuffer(fbo.buffer)
+    gl.deleteTexture(fbo.texture)
+  }
+
   var dataFrameBuffer;
   function renderPreparedTexture() {
     if (!dataBuffer) {
@@ -1146,7 +1161,7 @@ document.body.appendChild( stats.domElement );
 
     gl.useProgram(computer);
     if (!dataFrameBuffer) {
-      var fbo = getFrameBuffer(gl, options.mapSize * 2, options.mapSize * 2);
+      var fbo = getFrameBuffer(gl, options.mapSize * 2, options.mapSize * 2, 5);
       dataFrameBuffer = fbo.buffer;
       dataTexture = fbo.texture;
     }
@@ -1170,7 +1185,7 @@ document.body.appendChild( stats.domElement );
   }
 
 
-  var frameBuffer, frameTexture;
+  var fbo1, fbo2;
   function renderWorld() {
     if (!buffer) {
       buffer = gl.createBuffer();
@@ -1182,18 +1197,21 @@ document.body.appendChild( stats.domElement );
     gl.useProgram(program);
 
     if (view) {
-      var fbo = getFrameBuffer(gl, window.innerWidth, window.innerHeight);
-      frameBuffer = fbo.buffer;
-      frameTexture = fbo.texture;
+      if (fbo1)
+        deleteFrameBuffer(gl, fbo1);
+      if (fbo2)
+        deleteFrameBuffer(gl, fbo2);
 
-      canvas.width = window.innerWidth * options.depth;
-      canvas.height = window.innerHeight * options.depth;
-      canvas.style.width = window.innerWidth + 'px';
-      canvas.style.height = window.innerHeight + 'px';
+      var width = window.innerWidth, height = window.innerHeight;
+      fbo1 = getFrameBuffer(gl, width, height, 6);
+      fbo2 = getFrameBuffer(gl, width, height, 7);
+
+      canvas.width = width * options.depth;
+      canvas.height = height * options.depth;
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
       gl.uniformMatrix4fv(gl.getUniformLocation(program, 'camera'), false, getCamera());
-      gl.uniformMatrix4fv(gl.getUniformLocation(program, 'projection'), false, getProjection());
-      gl.uniformMatrix4fv(gl.getUniformLocation(program, 'orientation'), false, getOrientation());
-      gl.uniform2f(gl.getUniformLocation(program, 'viewport'), window.innerWidth, window.innerHeight);
+      gl.uniform2f(gl.getUniformLocation(program, 'viewport'), width, height);
       view = null;
     }
 
@@ -1204,9 +1222,15 @@ document.body.appendChild( stats.domElement );
     gl.uniform1i(gl.getUniformLocation(program, 'objects'), 3);
 
     // set meta data
+    gl.uniform1i(gl.getUniformLocation(program, 'iteration'), i);
     gl.uniform2f(gl.getUniformLocation(program, 'textureSize'), options.textureSize, options.textureSize);
     gl.uniform1f(gl.getUniformLocation(program, 'mapSize'), options.mapSize);
     gl.uniform1f(gl.getUniformLocation(program, 'tileSize'), options.tileSize);
+
+    gl.uniform2f(gl.getUniformLocation(program, 'scroll'), options.zooming ? 0 : scroll, 0);
+    gl.uniform2f(gl.getUniformLocation(program, 'scrolled'), options.zooming ? 0 : lastScroll, 0);
+    gl.uniformMatrix4fv(gl.getUniformLocation(program, 'matrix'), false, getMatrix(options.zooming ? scroll : 0));
+
 
     // iterate geometry in pairs of two
     var position = gl.getAttribLocation(program, 'position');
@@ -1217,38 +1241,41 @@ document.body.appendChild( stats.domElement );
     gl.enableVertexAttribArray(texture);
     gl.vertexAttribPointer(texture, 2, gl.FLOAT, false, 16, 8);
 
-    gl.uniform2f(gl.getUniformLocation(program, 'scroll'), options.zooming ? 0 : scroll, 0);
-    gl.uniformMatrix4fv(gl.getUniformLocation(program, 'matrix'), false, getMatrix(options.zooming ? scroll : 0));
-
-    // Attach pre-rendered textures
+    // Attach pre-rendered texture
     gl.activeTexture(gl.TEXTURE5);
     gl.bindTexture(gl.TEXTURE_2D, dataTexture);
     gl.uniform1i(gl.getUniformLocation(program, 'data'), 5);
-    gl.activeTexture(gl.TEXTURE6);
-    gl.bindTexture(gl.TEXTURE_2D, occlusionTexture);
-    gl.uniform1i(gl.getUniformLocation(program, 'occlusion'), 6);
+
+    // assign previous frame as a texture
+    gl.activeTexture(gl.TEXTURE0 + (i % 2 ? 6 : 7));
+    gl.bindTexture(gl.TEXTURE_2D, (i % 2 ? fbo1 : fbo2).texture);
+    gl.uniform1i(gl.getUniformLocation(program, 'frame'), i % 2 ? 6 : 7);
+
+    // assign fbo
+    gl.bindFramebuffer(gl.FRAMEBUFFER, (i % 2 ? fbo2 : fbo1).buffer);
 
     // Draw the thing.
-    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
     gl.viewport(0, 0, window.innerWidth, window.innerHeight);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.bindTexture(gl.TEXTURE_2D, null);
   }
 
-  function renderFrame() {
+  function renderUpscale() {
     gl.bindBuffer(gl.ARRAY_BUFFER, dataBuffer)
-    gl.useProgram(framer);
-    gl.activeTexture(gl.TEXTURE7);
-    gl.bindTexture(gl.TEXTURE_2D, frameTexture);
-    gl.uniform1i(gl.getUniformLocation(framer, 'frame'), 7);
+    gl.useProgram(upscaler);
+    gl.activeTexture(gl.TEXTURE0 + (i % 2 ? 7 : 6));
+    gl.bindTexture(gl.TEXTURE_2D, (i % 2 ? fbo2 : fbo1).texture);
+    gl.uniform1i(gl.getUniformLocation(upscaler, 'frame'), i % 2 ? 7 : 6);
 
-    var position = gl.getAttribLocation(framer, 'position');
+    gl.uniform1f(gl.getUniformLocation(upscaler, 'depth'), options.depth);
+    gl.uniform2f(gl.getUniformLocation(upscaler, 'viewport'), window.innerWidth, window.innerHeight);
+
+    var position = gl.getAttribLocation(upscaler, 'position');
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 8, 0);
-    gl.viewport(0, 0, window.innerWidth * options.depth, window.innerHeight * options.depth);
+    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
-    gl.bindTexture(gl.TEXTURE_2D, null);
     gl.bindBuffer(gl.ARRAY_BUFFER, null)
   }
 
@@ -1281,17 +1308,17 @@ document.body.appendChild( stats.domElement );
       renderPreparedTexture()
     }
     stats.begin();
-    renderWorld()
-    renderFrame()
-
+    renderWorld();
+    renderUpscale()
     // schedule next frame
     if (i < options.limit) {
       cancelAnimationFrame(requestedAnimation);
       requestedAnimation = requestAnimationFrame(render);
     }
-    if (scroll > 300 || scroll < 0)
+    if (scroll > options.range || scroll < -options.range)
       direction = - (window.direction || 1);
-    scroll += (window.direction || 1) * 1;
+    lastScroll = scroll;
+    scroll += (window.direction || 1) * options.speed;
     i++;
 
     stats.end();
@@ -1308,43 +1335,11 @@ document.body.appendChild( stats.domElement );
   function getCamera() {
     var direction = mat4.create()
     var camera = mat4.create()
-    
-    // set up camera direction
-    //mat4.lookAt(direction, [0, 0, 1], [0, 0, 0], [0, 1, 0])
-
-    // create and apply perspective
-    //mat4.perspective(camera, 90 * Math.PI / 180, window.innerWidth / window.innerHeight, 0.1, 1000)
-
-    //mat4.ortho(camera, -1, 1, -1, 1, -1, 1)
 
     // handle canvas aspect ratio (makes everything squared)
     camera[0] = 1 / (window.innerWidth / window.innerHeight)
 
-    //mat4.multiply(camera, camera, direction)
-    //mat4.multiply(camera, camera, projection)
-
-
     return camera
-  }
-
-  function getOrientation() {
-
-    var orientation = mat4.create()
-    mat4.rotate(orientation, orientation, 90 * Math.PI / 180, [0, 0, 1]);
-
-    mat4.rotate(orientation, orientation, 60 * Math.PI / 180, [1, 0 , 0]);
-    mat4.rotate(orientation, orientation, 45 * Math.PI / 180, [0, 0, 1]);
-    //mat4.scale(orientation, orientation, [1, 1, 1])
-
-    return orientation;
-  };
-
-  function getProjection() {
-    // rotate view (isometric projection)
-    var projection = mat4.create()
-    //mat4.rotate(projection, projection, 45 * Math.PI / 180, [0, 0//, 1]);
-    //mat4.rotate(projection, projection, 60 * Math.PI / 180, [1, 0 //, 0]);
-    return projection;
   }
 
   function getMatrix(scroll) {
@@ -1356,7 +1351,8 @@ document.body.appendChild( stats.domElement );
     // scale map up, to make units equal device pixels
     var ratio = (options.mapSize * options.tileSize / window.innerHeight) * options.zoom// * 1.4
     mat4.scale(matrix, matrix, [ ratio, ratio, ratio ])
-    mat4.scale(matrix, matrix, [ 1 - scroll / 400, 1 - scroll / 400, 1 - scroll / 400])
+    if (options.zooming)
+      mat4.scale(matrix, matrix, [ 1 - scroll / 400, 1 - scroll / 400, 1 - scroll / 400])
     return matrix
   }
 
