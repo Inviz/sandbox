@@ -144,11 +144,11 @@ document.body.appendChild( stats.domElement );
   }
   float encodeReverseTransition(float x, float a, float b, float c, float d, float e, float f, float g, float h) {
     float result = 0.0;
-    if (x < a || x > 0.0)
+    if (x < a || a > 0.0)
       result += 128.0;
     if (x < b || b > 0.0)
       result += 64.0;
-    if (x < c || b > 0.0)
+    if (x < c || c > 0.0)
       result += 32.0;
     if (x < d || b > 0.0)
       result += 16.0;

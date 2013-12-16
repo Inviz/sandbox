@@ -17,13 +17,20 @@ Game.Quest = function(object, type, value, reference) {
       var result = Game.Object.Action(object, quest, command, argument, output, reference);
       if (key)
         Game.Object.Output(id, key, result);
-      var argument = result;
-      var result = output;
-      if (result === false) {
-        Game.Object.set(object, type, 0)
+      // skip action (too far away, no tools, etc)
+      if (result === false)
+        continue;
+      // wait for completion
+      if (typeof result == 'number') {
+        console.error(result, 'LOOOOL')
+        break;
+      }
+      if (result === true) {
+        Game.Object.Value.set(object, quest.type, 0);
         if (!steps[i])
           break;
       }
+      var argument = result;
     } else {
       if (!command.precondition || command.precondition.call(this)) {
         var o = Game.Object.Value(object, t);
@@ -34,13 +41,3 @@ Game.Quest = function(object, type, value, reference) {
   }
   return result;
 }
-
-Game.Quest.Location = function(quest, value) {
-  if (value.locations) {
-    if (this.distance && this.distance < value.result.length)
-      return;
-    else
-      return Game.Path.Location(value);
-  }
-  return Game.Object.Location(value);
-};

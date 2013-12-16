@@ -8,16 +8,10 @@ GL = function(canvas) {
 GL.Shader = function(gl, type, source) {
   type = gl[GL.Shader.types[type]]
 
-  // Create the shader object
   var shader = gl.createShader(type);
-
-  // Load the shader source
   gl.shaderSource(shader, source);
-
-  // Compile the shader
   gl.compileShader(shader);
 
-  // Check the compile] status
   var compiled = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
   if (!compiled) {
     var lastError = gl.getShaderInfoLog(shader);
@@ -36,7 +30,7 @@ GL.Shader.types = {
   'x-shader/x-fragment': 'FRAGMENT_SHADER',
   'shader/fragment':     'FRAGMENT_SHADER',
   'fragment':            'FRAGMENT_SHADER',
-  'FRAGMENT_SHADR':      'FRAGMENT_SHADER',
+  'FRAGMENT_SHADER':      'FRAGMENT_SHADER',
   'undefined':           'FRAGMENT_SHADER'
 }
 
@@ -59,7 +53,6 @@ GL.Program = function(gl, shaders, attributes, locations) {
 
   gl.linkProgram(program);
 
-  // Check the link status
   var linked = gl.getProgramParameter(program, gl.LINK_STATUS);
   if (!linked) {
     var lastError = gl.getProgramInfoLog(program);
@@ -72,7 +65,7 @@ GL.Program = function(gl, shaders, attributes, locations) {
   return program;
 };
 
-GL.Texture = function(gl, index, image, wrap, alias) {
+GL.Texture = function(gl, index, image, wrap) {
   var old = this != GL && this != window
   var texture = old ? this : gl.createTexture();
   if (index != null) {
@@ -86,21 +79,10 @@ GL.Texture = function(gl, index, image, wrap, alias) {
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
   }
   if (wrap) {
-    // Set the parameters so we can render any size image.
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   }
-  if (!alias) {
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  } else {
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  }
-  /*
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-    gl.generateMipmap(gl.TEXTURE_2D);
-  */
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   return texture;
 }

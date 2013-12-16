@@ -119,9 +119,10 @@ Game.merge('quests', {
       outside: {
         actions: function() {
           return [
-            Game.Value('actions.search.property.quickly', 3),
-            Game.Value('actions.navigate.there.quickly', 2),
-            Game.Value('actions.process.gather.quickly', 1)
+            Game.Value('actions.find.location.object', 4),
+            Game.Value('actions.process.gather.quickly', 3),
+            Game.Value('actions.find.path.towards', 2),
+            Game.Value('actions.navigate.there.manually', 1)
           ]
         }
       },

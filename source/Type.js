@@ -3,7 +3,7 @@
 Game = (function() {
 
 var Type = function(object, index, parent, reference) {
-  if (this.merge) {
+  if (index != null) {
     var Storage = function() {
       if (this instanceof Storage)
         return;
@@ -45,13 +45,13 @@ var Type = function(object, index, parent, reference) {
       parent[index] = Storage;
     }
     if (!index)
-      Storage._length = 1;
+      Storage.__length = 1;
   
     switch (typeof object) {
       case 'object': case 'function':
         for (var property in object)
           if (object.hasOwnProperty(property))
-          if (this.Type._ignored.indexOf(property) == -1)
+          if (this._ignored.indexOf(property) == -1)
             Storage.merge(property, object[property])
           else
             Storage[property] = object[property];
@@ -59,8 +59,37 @@ var Type = function(object, index, parent, reference) {
     }
 
     return Storage;
+  } else {
+    if (typeof object != 'number') {
+      var result = object._index ? object : this[object];
+      if (result) result = result._index;
+      if (result == null) {
+        var context = this;
+        // walk composite key
+        for (var last = -1, index; index = object.indexOf('.', last + 1); ) {
+          var key = object.substring(last + 1, index == -1 ? undefined : index);
+          context = context[key];
+          if (context == null)
+            return 0
+          if (index == -1) {
+            return context._index;
+          } else last = index
+        }
+      }
+      return result;
+    } else {
+      if (object > 9999) {
+        while (object > 9999)
+          object /= 10
+        return Math.floor(object)
+      }
+      return object;
+    }
   }
 };
+
+var Game = Type.prototype;
+Game.Type = Type;
 
 Type.prototype.toString = function() {
   return this._path;
@@ -69,22 +98,16 @@ Type.prototype.toString = function() {
 Type.prototype.valueOf = function() {
   return this._index || 0;
 }
-
-// returns type of data item (first 4 digits)
-Type.prototype.typeOf = function(number) {
-  while (number > 9999)
-    number /= 10
-  return Math.floor(Math.abs(number));
-}
+Type.prototype.typeOf = Type;
 
 // adds dictionary item
 Type.prototype.merge = function(key, value, index) {
   if (index == null)
     index = this._index || 0;
-  if (this._length == null)
-    this._length = 0;
+  if (this.__length == null)
+    this.__length = 0;
   if (value != null && typeof value == 'object' && !value.push) {
-    var i = index * 10 + (this._length++);
+    var i = index * 10 + (this.__length++);
     var object = this[key] = new Game.Type(value, i, this, key);
   } else {
     var val = this[key] = value;
@@ -92,7 +115,7 @@ Type.prototype.merge = function(key, value, index) {
   if (this != Game)
     for (var property in this)
       if (this.hasOwnProperty(property)
-      && Game.Type._ignored.indexOf(property) == -1
+      && this._ignored.indexOf(property) == -1
       && key !== property) {
         var v = this[property];
         if (object && v._index == null) {
@@ -104,15 +127,50 @@ Type.prototype.merge = function(key, value, index) {
       }
 }
 
+Type.prototype._ignored = ['_length', '_parent', '_index', '_reference', '_path', 'merge', '_ignored', 'valueOf', 'typeOf', 'toString', 'Range', 'Type']
 
-Type._ignored = ['_length', '_parent', '_index', '_reference', '_path', 'merge', '_ignored', 'valueOf', 'toString']
 
-Type.prototype.Type = Type;
-var Game = new Type
-Game.Type = Type
+Game.Type.Range = function(type) {
+  var result = Game.Type(type);
+  if (result < 10)
+    return result * 1000;
+  else if (result < 100)
+    return result * 100;
+  else if (result < 1000)
+    return result * 10;
+  else
+    return result;
+}
+
+// enchrich type definition with list of inheritable properties.
+// should be ran after all definitions are initialized
+Game.Type.Properties = function(reference) {
+  if (reference._length === undefined) {
+    reference._length = 0;
+    for (var property in reference) {
+      var value = reference[property];
+      if (reference._ignored && reference._ignored.indexOf(property) > -1)
+        continue;
+      var number = Game.Type(property)
+      if (number) {
+        var definition = Game[number];
+        if (definition.inherit) {
+          reference[reference._length] = Game.Value(number, reference[property]);
+          reference._length++;
+        }
+      }
+    }
+  }
+  return reference;
+}
+
+// add trailing zeros to a data type id to make it 4 digits
+// used to query value types (is this thing a `creature`?)
+
+
+Game = new Type(null, 0);
 Game.merge('location', {})
 Game.merge('path', {})
-
 return Game;
 
 })()

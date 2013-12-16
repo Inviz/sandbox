@@ -6,30 +6,6 @@ Game.Coordinates = function(number) {
   return number
 }
 
-Game.Coordinates.opposites = {
-  'northeast': 'southwest',
-  'north': 'south',
-  'northwest': 'southeast',
-  'west': 'east',
-  'southwest': 'northeast',
-  'south': 'north',
-  'southeast': 'northwest',
-  'east': 'west'
-}
-
-Game.Coordinates.numbers = [
-  'up',
-  'northwest',
-  'north',
-  'northeast',
-  'west',
-  'center',
-  'east',
-  'southwest',
-  'south',
-  'southeast'
-];
-
 Game.Coordinates.west = function(number) {
   for (var remainder = number, zoom = 0;; zoom++) {
     var digit = remainder % 10;
@@ -202,6 +178,31 @@ Game.Coordinates.Distance = function(a, b, type) {
       return Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1))
   }
 }
+
+
+Game.Coordinates.opposites = {
+  'northeast': 'southwest',
+  'north': 'south',
+  'northwest': 'southeast',
+  'west': 'east',
+  'southwest': 'northeast',
+  'south': 'north',
+  'southeast': 'northwest',
+  'east': 'west'
+}
+
+Game.Coordinates.numbers = [
+  'up',
+  'northwest',
+  'north',
+  'northeast',
+  'west',
+  'center',
+  'east',
+  'southwest',
+  'south',
+  'southeast'
+];
 
 Game.Coordinates.numbers.forEach(function(value, index) {
   Game.Coordinates[index] = Game.Coordinates[value];

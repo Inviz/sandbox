@@ -12,11 +12,6 @@ Game.Time = function(time, map) {
 
         // execute object's current quest and subquests
         Game.Object.Quests(object)
-
-        // move object on its path by one tile
-        var path = Game.Object.Path(object)
-        if (path)
-          Game.Object.Location(object, path);
       }
     }
   }

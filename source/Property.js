@@ -23,7 +23,7 @@ Game.Property = function(number, value, reference) {
         if (reference == null)
           var reference = remainder - v * divisor;
         if (reference && typeof reference == 'number')
-          reference = Game.Reference(reference)
+          reference = Game.Referenced(reference)
       }
     } else {
       type = number

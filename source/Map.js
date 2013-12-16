@@ -41,9 +41,9 @@ Game.Map.prototype.tileAt = function(number, lazy) {
   if (this.scrolling) {
     var width = this.width;
     var digits = Math.floor(Math.log(number) / Math.LN10) + 1;
-    var divider = Math.pow(10, Math.min(width, digits - this.z));
-    var zone = Math.floor(number / divider);
-    var remainder = number - zone * divider;
+    var divisor = Math.pow(10, Math.min(width, digits - this.z));
+    var zone = Math.floor(number / divisor);
+    var remainder = number - zone * divisor;
     var zoned = array[zone];
     if (remainder) {
       if (zoned)
@@ -54,15 +54,15 @@ Game.Map.prototype.tileAt = function(number, lazy) {
   if (number > this.max) {
     var z = this.z || 1;
     var digits = Math.floor(Math.log(number) / Math.LN10) + 1;
-    var divider = Math.pow(10, Math.max(0, digits - z));
-    var remainder = Math.floor(number / divider);
+    var divisor = Math.pow(10, Math.max(0, digits - z));
+    var remainder = Math.floor(number / divisor);
     if (remainder == this.zone || !this.zone) {
-      var coordinates = number - remainder * divider;
+      var coordinates = number - remainder * divisor;
       digits = digits - z - this.width
-      var divider = Math.pow(10, Math.max(0, digits));
+      var divisor = Math.pow(10, Math.max(0, digits));
       if (digits > 0)
         var local = number;
-      coordinates = Math.floor(coordinates / divider);
+      coordinates = Math.floor(coordinates / divisor);
     } else {
       //console.error('prefix mismatch', number, remainder, this.zone)
       return;
@@ -103,7 +103,7 @@ Game.Map.prototype.move = function(from, to, object) {
 Game.Map.prototype.delete = function(tile, object, lazy) {
   if (typeof tile == 'number')
     tile = this(tile)
-  var occupation = Game.Value('occupy', 0, 'object', object);
+  var occupation = Game.Value('occupy', 0, Game.Reference('object', object));
   tile.splice(tile.indexOf(occupation), 1);
   object.splice(object.indexOf(tile[0]), 1);
   if (!lazy)
@@ -130,7 +130,7 @@ Game.Map.prototype.delete = function(tile, object, lazy) {
           break;
         var tile = world(parent);
         if (tile)
-          Game.Object.increment(tile, kind, - val)
+          Game.Object.Value.increment(tile, kind, - val)
       }
     }
   }
@@ -140,7 +140,7 @@ Game.Map.prototype.delete = function(tile, object, lazy) {
 Game.Map.prototype.put = function(tile, object, lazy) {
   if (typeof tile == 'number')
     tile = this(tile)
-  tile.push(Game.Value('occupy', 0, 'object', object));
+  tile.push(Game.Value('occupy', 0, Game.Reference('object', object)));
   object.push(tile[0]);
   if (!lazy)
     this.objects.push(object);
@@ -169,7 +169,7 @@ Game.Map.prototype.put = function(tile, object, lazy) {
           break;
         var tile = world(parent);
         if (tile)
-          Game.Object.increment(tile, kind, val)
+          Game.Object.Value.increment(tile, kind, val)
       }
     }
   }
@@ -455,7 +455,7 @@ Game.Map.prototype.setZone = function(number, callback) {
 Game.Map.prototype.each = function(callback, bind, lazy) {
   if (this.scrolling) {
     var prefix = 0;
-    var start = Game.Coordinates.north(Game.Coordinates.west(this.zoned));
+    var start = Game.Coordinates.northwest(this.zoned);
     var width = 1
   } else {
     var prefix = this.zone * Math.pow(10, this.width);
@@ -487,9 +487,9 @@ Game.Map.prototype.draw = function(object) {
     var world    = Game.Object.Map(id)
     var navigate = Game.Object.Output(id, 'walk')
     var locate   = Game.Object.Output(id, 'look')
-    var queue    = locate.queues;
-    var goals    = locate.result;
-    var path     = navigate.result;
+    var queue    = []//locate.queues;
+    var goals    = []//locate.result;
+    var path     = []//navigate.result;
     var q        = [];
     var g        = []
     var modifier = 0;
