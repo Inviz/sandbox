@@ -125,6 +125,7 @@ describe("Game.Object.Value", function() {
       expect(Game.Object.Value(object, 'properties.personal.stats.strength')).toBe(21)
 
       // callback is fired with referenced objects as first argument
+      // returns total
       var log = [];
       expect(Game.Object.Value(object, 'strength', function(object, type, value, reference) {
         log.push([object, type, value, reference])
@@ -135,16 +136,7 @@ describe("Game.Object.Value", function() {
         [cap, Game.strength, -17, null]
       ]);
 
-      // only query equipment
-      var log = [];
-      expect(Game.Object.Equipment.Value.map(object, 'strength', function(object, type, value, reference) {
-        log.push([object, type, value, reference])
-      })).toEqual([7, -17])
-      expect(log).toEqual([ 
-        [gloves, Game.strength, 7, null], 
-        [cap, Game.strength, -17, null]
-      ]); 
-
+      // find matching properties on equipment, modify values via map
       var log = [];
       expect(Game.Object.Equipment.Property.map(object, 'strength', function(object, type, value, reference) {
         log.push([object, type, value, reference])
@@ -155,6 +147,17 @@ describe("Game.Object.Value", function() {
         [cap, Game.strength, -17, null]
       ]);
 
+      // only query equipment for values
+      var log = [];
+      expect(Game.Object.Equipment.Value.map(object, 'strength', function(object, type, value, reference) {
+        log.push([object, type, value, reference])
+      })).toEqual([7, -17])
+      expect(log).toEqual([ 
+        [gloves, Game.strength, 7, null], 
+        [cap, Game.strength, -17, null]
+      ]); 
+
+      // fetch a single own property with callback
       var log = [];
       expect(Game.Object.Stats.Property(object, 'strength', function(object, type, value, reference) {
         log.push([object, type, value, reference])
