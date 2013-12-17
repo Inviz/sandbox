@@ -3,7 +3,32 @@
 Game = (function() {
 
 var Type = function(object, index, parent, reference) {
-  if (index != null) {
+  if (index == null) {
+    if (typeof object != 'number') {
+      var result = object._index ? object : this[object];
+      if (result == null) {
+        var context = this;
+        // walk composite key
+        for (var last = -1, index; index = object.indexOf('.', last + 1); ) {
+          var key = object.substring(last + 1, index == -1 ? undefined : index);
+          context = context[key];
+          if (context == null)
+            return 0
+          if (index == -1) {
+            return context._index;
+          } else last = index
+        }
+      }
+      return result;
+    } else {
+      if (object > 9999) {
+        while (object > 9999)
+          object /= 10
+        return Math.floor(object)
+      }
+      return Game[object];
+    }
+  } else {
     var Storage = function() {
       if (this instanceof Storage)
         return;
@@ -22,8 +47,12 @@ var Type = function(object, index, parent, reference) {
     for (var property in this.Type.prototype)
       Storage[property] = this.Type.prototype[property];
 
+    var range = Math.pow(10, 3 - Math.floor(Math.log(index) / Math.LN10));
+
     this.Type[index] = Storage;
     Storage._index = index;
+    Storage._start = index * range;
+    Storage._end = index * range + range;
     if (reference) {
       Storage._parent = parent;
       var path = Storage._reference = reference;
@@ -59,32 +88,6 @@ var Type = function(object, index, parent, reference) {
     }
 
     return Storage;
-  } else {
-    if (typeof object != 'number') {
-      var result = object._index ? object : this[object];
-      if (result) result = result._index;
-      if (result == null) {
-        var context = this;
-        // walk composite key
-        for (var last = -1, index; index = object.indexOf('.', last + 1); ) {
-          var key = object.substring(last + 1, index == -1 ? undefined : index);
-          context = context[key];
-          if (context == null)
-            return 0
-          if (index == -1) {
-            return context._index;
-          } else last = index
-        }
-      }
-      return result;
-    } else {
-      if (object > 9999) {
-        while (object > 9999)
-          object /= 10
-        return Math.floor(object)
-      }
-      return object;
-    }
   }
 };
 
@@ -129,19 +132,6 @@ Type.prototype.merge = function(key, value, index) {
 
 Type.prototype._ignored = ['_length', '_parent', '_index', '_reference', '_path', 'merge', '_ignored', 'valueOf', 'typeOf', 'toString', 'Range', 'Type']
 
-
-Game.Type.Range = function(type) {
-  var result = Game.Type(type);
-  if (result < 10)
-    return result * 1000;
-  else if (result < 100)
-    return result * 100;
-  else if (result < 1000)
-    return result * 10;
-  else
-    return result;
-}
-
 // enchrich type definition with list of inheritable properties.
 // should be ran after all definitions are initialized
 Game.Type.Properties = function(reference) {
@@ -151,13 +141,10 @@ Game.Type.Properties = function(reference) {
       var value = reference[property];
       if (reference._ignored && reference._ignored.indexOf(property) > -1)
         continue;
-      var number = Game.Type(property)
-      if (number) {
-        var definition = Game[number];
-        if (definition.inherit) {
-          reference[reference._length] = Game.Attribute(number, reference[property]);
-          reference._length++;
-        }
+      var type = Game.Type(property)
+      if (type && type.inherit) {
+        reference[reference._length] = Game.Attribute(type, reference[property]);
+        reference._length++;
       }
     }
   }
