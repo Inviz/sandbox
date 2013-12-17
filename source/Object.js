@@ -10,7 +10,7 @@ Game.Object = function(object) {
     for (var arg, j = arguments.length; i < j; i++) {
       var arg = arguments[i]; 
       if (typeof arg == 'string')
-        arg = Game.Value(arg);
+        arg = Game.Attribute(arg);
       array.push(arg);
     }
     var id = Game.Object.Value(array, 'id');
@@ -135,7 +135,7 @@ Game.Object.Value = function() {
     if (method.reducer)
       return method.reducer(result, object, type, reference, arg, i, value)
     else if (method.output === false && typeof result == 'number')
-      return Game.Value(resulting || type, result, reference);
+      return Game.Attribute(resulting || type, result, reference);
     else
       return result;
   }
@@ -202,7 +202,7 @@ Game.Object.Scope.Value = new Game.Object.Scope({
 })
 
 // Return property (type + value + reference)
-Game.Object.Scope.Property = new Game.Object.Scope({
+Game.Object.Scope.Attribute = new Game.Object.Scope({
   output: false
 })
 
@@ -212,17 +212,20 @@ Game.Object.Scope.get = new Game.Object.Scope({
 })
 
 // Return array of results
-Game.Object.Scope.map = new Game.Object.Scope({
+Game.Object.Scope.each = new Game.Object.Scope({
   iterator: function(result, value, object, type, reference) {
     if (!result)
       result = [];
     if (this.output === false)
-      result.push(Game.Value(type, value, reference));
+      result.push(Game.Attribute(type, value, reference));
     else
       result.push(value)
     return result;
   }
-})
+});
+
+Game.Object.Scope.map = Game.Object.Scope.each;
+Game.Object.Scope.filter = Game.Object.Scope.each;
 
 // Unscoped setters
 Game.Object.Value.set = new Game.Object.Scope({
@@ -230,7 +233,7 @@ Game.Object.Value.set = new Game.Object.Scope({
   single: true,
   own: true,
   reducer: function(result, object, type, reference, arg, i) {
-    return object[i] = Game.Value(type, arg, reference)
+    return object[i] = Game.Attribute(type, arg, reference)
   }
 })
 
@@ -239,7 +242,7 @@ Game.Object.Value.increment = new Game.Object.Scope({
   single: true,
   own: true,
   reducer: function(result, object, type, reference, arg, i, value) {
-    return object[i] = Game.Value(type, arg + (value || 0), reference);
+    return object[i] = Game.Attribute(type, arg + (value || 0), reference);
   }
 })
 
@@ -248,7 +251,7 @@ Game.Object.Value.decrement = new Game.Object.Scope({
   single: true,
   own: true,
   reducer: function(result, object, type, reference, arg, i, value) {
-    return object[i] = Game.Value(type, arg - (value || 0), reference);
+    return object[i] = Game.Attribute(type, arg - (value || 0), reference);
   }
 })
 
@@ -271,9 +274,9 @@ Game.Object.Value = new Game.Object.Scope(
   null, Game.Object.Value, true);
 
 // Return property (value with type and optional reference, internal format)
-Game.Object.Property = new Game.Object.Scope(
-  Game.Object.Scope.config, Game.Object.Scope.Property, 
-  null, Game.Object.Property, true);
+Game.Object.Attribute = new Game.Object.Scope(
+  Game.Object.Scope.config, Game.Object.Scope.Attribute, 
+  null, Game.Object.Attribute, true);
 
 // Referenced objects
 Game.Object.References = new Game.Object.Scope({
@@ -351,7 +354,7 @@ Game.Object.Definitions = new Game.Object.Scope({
           subject[key][method] = cache;
       }
     }
-}(['Self', 'Value', 'Property'], ['Stats', 'Definitions', 'References', 'Equipment', 'Effects']);
+}(['Self', 'Value', 'Attribute'], ['Stats', 'Definitions', 'References', 'Equipment', 'Effects']);
 
 // Set object's time
 Game.Object.Time = function(object, time) {
@@ -386,7 +389,7 @@ Game.Object.Location = function(object, value) {
 Game.Object.Coordinates = function(object, value) { 
   if (typeof object == 'number')
     object = Game.Object[object];
-  return Game.Object.Property.get(object, 1)
+  return Game.Object.Attribute.get(object, 1)
 };
 
 // Get/set map that object belongs to
@@ -442,7 +445,7 @@ Game.Object.id = 0;
 // if that adds a more important quest, execute it too
 Game.Object.Quests = function(object) {
   for (var current = null, prev = null; 
-      (current = Game.Object.Property.max(object, 'quests')) != prev;
+      (current = Game.Object.Attribute.max(object, 'quests')) != prev;
       prev = current)
     Game.Object.Quest(object, current);
 }

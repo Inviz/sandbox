@@ -103,7 +103,7 @@ Game.Map.prototype.move = function(from, to, object) {
 Game.Map.prototype.delete = function(tile, object, lazy) {
   if (typeof tile == 'number')
     tile = this(tile)
-  var occupation = Game.Value('occupy', 0, Game.Reference('object', object));
+  var occupation = Game.Attribute('occupy', 0, 'object', object);
   tile.splice(tile.indexOf(occupation), 1);
   object.splice(object.indexOf(tile[0]), 1);
   if (!lazy)
@@ -130,7 +130,7 @@ Game.Map.prototype.delete = function(tile, object, lazy) {
           break;
         var tile = world(parent);
         if (tile)
-          Game.Object.Value.increment(tile, kind, - val)
+          Game.Object.increment(tile, kind, - val)
       }
     }
   }
@@ -140,7 +140,7 @@ Game.Map.prototype.delete = function(tile, object, lazy) {
 Game.Map.prototype.put = function(tile, object, lazy) {
   if (typeof tile == 'number')
     tile = this(tile)
-  tile.push(Game.Value('occupy', 0, Game.Reference('object', object)));
+  tile.push(Game.Attribute('occupy', 0, 'object', object));
   object.push(tile[0]);
   if (!lazy)
     this.objects.push(object);
@@ -169,7 +169,7 @@ Game.Map.prototype.put = function(tile, object, lazy) {
           break;
         var tile = world(parent);
         if (tile)
-          Game.Object.Value.increment(tile, kind, val)
+          Game.Object.increment(tile, kind, val)
       }
     }
   }

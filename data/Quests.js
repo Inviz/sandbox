@@ -29,25 +29,25 @@ Game.merge('quests', {
 
         actions: function() {
           return [
-            Game.Value('quests.routine.acquire.outside', 3),
-            Game.Value('quests.routine.process.cook', 2),
-            Game.Value('quests.routine.consume.eat', 1)
+            Game.Attribute('quests.routine.acquire.outside', 3),
+            Game.Attribute('quests.routine.process.cook', 2),
+            Game.Attribute('quests.routine.consume.eat', 1)
           ]
         }
       },
       rest: {
         actions: function() {
           return [
-            Game.Value('quests.routine.shelter', -1),
-            Game.Value('quests.routine.rest',     1)
+            Game.Attribute('quests.routine.shelter', -1),
+            Game.Attribute('quests.routine.rest',     1)
           ]
         }
       },
       hide: {
         actions: function() {
           return [
-            Game.Value('quests.routine.shelter',  1),
-            Game.Value('quests.routine.rest',    -1)
+            Game.Attribute('quests.routine.shelter',  1),
+            Game.Attribute('quests.routine.rest',    -1)
           ]
         }
       }
@@ -56,7 +56,7 @@ Game.merge('quests', {
       eat: {
         actions: function() {
           return [
-            Game.Value('actions.process.consume.quickly', 1)
+            Game.Attribute('actions.process.consume.quickly', 1)
           ]
         }
       },
@@ -74,8 +74,8 @@ Game.merge('quests', {
         },
         choices: function() {
           return [
-            Game.Value('quests.routine.acquire', 1, 'fire'),
-            Game.Value('quests.routine.goto', 1, 'kitchen')
+            Game.Attribute('quests.routine.acquire', 1, 'fire'),
+            Game.Attribute('quests.routine.goto', 1, 'kitchen')
           ]
         }
       }
@@ -119,10 +119,10 @@ Game.merge('quests', {
       outside: {
         actions: function() {
           return [
-            Game.Value('actions.find.location.object', 4),
-            Game.Value('actions.process.gather.quickly', 3),
-            Game.Value('actions.find.path.towards', 2),
-            Game.Value('actions.navigate.there.manually', 1)
+            Game.Attribute('actions.find.location.object', 4),
+            Game.Attribute('actions.process.gather.quickly', 3),
+            Game.Attribute('actions.find.path.towards', 2),
+            Game.Attribute('actions.navigate.there.manually', 1)
           ]
         }
       },

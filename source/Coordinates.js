@@ -1,3 +1,26 @@
+/*
+  The game uses fractal coordinate system.
+  The world is split into 3x3 grid, with each cell
+  numbered from 1 to 9. Then each cell is split into
+  3x3 and so on. The final coordinate is a number
+  with each digit representing a cell in a grid.
+
+  It's a little harder to deal with these coordinates
+  compared to regular (x, y) system:
+    - Moving one cell to the north is not a simple matter
+      of subtracting 1 from y coordinate.
+    - Calculating distances means converting points to (x, y)
+
+  There're advantages too:
+    - It's possible to enlarge world by scale factor 9 without
+      changing coordinates of existing objects and locations
+    - World zoning and sharding is easier, because each coordinate
+      has zone information baked in. It is also possible to point
+      at a zone at some specific level
+
+  It works good for this stage of development, but it adds some
+  undesired overhead, so implementation may change in future.
+*/
 Game.Coordinates = function(number) {
   if (number.locations)
     return Game.Path.Coordinates(number)

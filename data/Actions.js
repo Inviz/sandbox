@@ -72,13 +72,11 @@ Game.merge('actions', {
         Game.Object.References(input, function(object) {
           var resource = Game.Object.Value(object, 'resources.food.plants.fruit');
           if (resource) {
-            Game.Object.Value.set(object, 'resources.food.plants.fruit', 0)
+            Game.Object.set(object, 'resources.food.plants.fruit', 0)
             this.push(
-              Game.Value('properties.belonging.inventory.bag', 1, 
-                Game.Reference('object', 
-                  Game('items.organic.plants.berry', 
-                    Game.Value('resources.food.plants.fruit', resource)
-                  )
+              Game.Attribute('properties.belonging.inventory.bag', 1, 'object', 
+                Game('items.organic.plants.berry', 
+                  Game.Attribute('resources.food.plants.fruit', resource)
                 )
               )
             )

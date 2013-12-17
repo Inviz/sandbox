@@ -14,7 +14,7 @@ var Type = function(object, index, parent, reference) {
       for (var i = 0, j = arguments.length; i < j; i++) {
         var arg = arguments[i];
         if (typeof arg == 'string')
-          arg = Game.Value(arg);
+          arg = Game.Attribute(arg);
         object.push(arg);
       }
       return object;
@@ -155,7 +155,7 @@ Game.Type.Properties = function(reference) {
       if (number) {
         var definition = Game[number];
         if (definition.inherit) {
-          reference[reference._length] = Game.Value(number, reference[property]);
+          reference[reference._length] = Game.Attribute(number, reference[property]);
           reference._length++;
         }
       }
