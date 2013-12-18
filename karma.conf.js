@@ -12,6 +12,8 @@ module.exports = function(config) {
       'source/Type.js',
       'source/Quest.js',
       'source/Action.js',
+      'source/Scope.js',
+      'source/Value.js',
       'source/*.js',
       'data/Properties.js',
       'data/Quests.js',

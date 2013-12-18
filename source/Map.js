@@ -571,7 +571,7 @@ Game.Map.prototype.draw = function(object) {
         var pos = i * 4;
       }
 
-      Game.Object.References(tile, function(object, type) {
+      Game.Object.References(tile, 0, function(object, type) {
         Game.Object.Types(object, function(definition, type) {
           switch (definition._reference) {
             case 'table':

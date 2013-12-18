@@ -61,8 +61,6 @@ describe("Game.Object.Value", function() {
       
       var log = [];
       expect(Game.Object.Value(object, 'age', function(object, type, value, reference) {
-        if (value == 0)
-          debugger
         log.push([object, type, value, reference])
       })).toBe(22)
       expect(log).toEqual([
@@ -159,7 +157,7 @@ describe("Game.Object.Value", function() {
 
       // fetch a single own property with callback
       var log = [];
-      expect(Game.Object.Stats.Attribute(object, 'strength', function(object, type, value, reference) {
+      expect(Game.Object.Properties.Attribute(object, 'strength', function(object, type, value, reference) {
         log.push([object, type, value, reference])
       })).toEqual(object[2])
       expect(log).toEqual([ 

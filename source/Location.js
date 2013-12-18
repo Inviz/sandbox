@@ -12,3 +12,9 @@ Game.Location = function(value) {
 Game.Location.Coordinates = function(array) {
   return array[0];
 };
+
+// Generate all combinations of iterator scopes
+Game.Scopes(Game.Location, 
+  ['Self', 'Value', 'Attribute'], 
+  ['Properties', 'Definitions', 'References', 'Equipment', 'Effects']
+);
