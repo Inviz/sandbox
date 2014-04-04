@@ -123,24 +123,14 @@ document.body.appendChild( stats.domElement );
   }
 
   float encodeTransition(float x, float a, float b, float c, float d, float e, float f, float g, float h) {
-    float result = 0.0;
-    if (x > a)
-      result += 128.0;
-    if (x > b)
-      result += 64.0;
-    if (x > c)
-      result += 32.0;
-    if (x > d)
-      result += 16.0;
-    if (x > e)
-      result += 8.0;
-    if (x > f)
-      result += 4.0;
-    if (x > g)
-      result += 2.0;
-    if (x > h)
-      result += 1.0;
-    return result;
+    return (128.0 * float(x > a)) +
+           (64.0 * float(x > b)) +
+           (32.0 * float(x > c)) +
+           (16.0 * float(x > d)) +
+           (8.0 * float(x > e)) +
+           (4.0 * float(x > f)) +
+           (2.0 * float(x > g)) +
+           (1.0 * float(x > h));
   }
   float encodeReverseTransition(float x, float a, float b, float c, float d, float e, float f, float g, float h) {
     float result = 0.0;
@@ -388,7 +378,7 @@ document.body.appendChild( stats.domElement );
       return vec4(0, 0, 0, 0);
   }
 
-  float getMask(float value) {
+  float getMask(float value, bool diagonals) {
     // unpack bitmask
     foreach(
       a 128.0,
@@ -400,63 +390,33 @@ document.body.appendChild( stats.domElement );
       g 2.0,
       h 1.0
     as $flag, $value)
-      bool $flag = false;
-      if (value >= $value) {
-        value -= $value;
-        $flag = true;
-      } 
+      bool $flag = (value >= $value);
+      value -= min(float($flag) * 256.0, $value);
     endforeach
     vec2 coordinates = (tile * mapSize - floor(tile * mapSize));
-    if (b && d && f && h)
-      return 19.0;
-    if (coordinates.x < 0.5) {
-      if (coordinates.y > 0.5) {
-        if (a && !h && !b)
-          return 13.0;
-      } else {
-        if (c && !d && !b)
-          return 14.0;
-      }
-    } else {
-      if (coordinates.y < 0.5) {
-        if (e && !d && !f)
-          return 15.0;
-      } else {
-        if (g && !h && !f)
-          return 16.0;
-      }
-    }
-    if (h && b && d)
-      return 9.0;
-    if (b && d && f)
-      return 10.0;
-    if (d && f && h)
-      return 11.0;
-    if (f && h && b)
-      return 12.0;
-    if (h && b)
-      return 5.0;
-    if (b && d)
-      return 6.0;
-    if (d && f)
-      return 7.0;
-    if (f && h)
-      return 8.0;
-    if (coordinates.x < 0.5) {
-      if (b)
-        return 1.0;
-    } else {
-      if (f)
-        return 3.0;
-    }
-    if (coordinates.y < 0.5) {
-      if (d)
-        return 2.0;
-    } else {
-      if (h)
-        return 4.0;
-    }
-    return 0.0;
+    return 
+      max(19.0 * float(b && d && f && h),
+
+      max(16.0 * float(a && !h && !b && coordinates.x < 0.5 && coordinates.y > 0.5),
+      max(15.0 * float(c && !d && !b && coordinates.x < 0.5 && coordinates.y < 0.5),
+      max(14.0 * float(e && !d && !f && coordinates.x > 0.5 && coordinates.y < 0.5),
+      max(13.0 * float(g && !h && !f && coordinates.x > 0.5 && coordinates.y > 0.5),
+
+      max(12.0 * float(h && b && d),
+      max(11.0 * float(b && d && f),
+      max(10.0 * float(d && f && h),
+      max(9.0  * float(f && h && b),
+
+      max(8.0  * float(h && b),
+      max(7.0  * float(b && d),
+      max(6.0  * float(d && f),
+      max(5.0  * float(f && h),
+
+      max(4.0  * float(b && coordinates.x < 0.5),
+      max(3.0  * float(d && coordinates.y < 0.5),
+      max(2.0  * float(f && coordinates.x > 0.5),
+         (1.0  * float(h && coordinates.y > 0.5)))))))))))))))))
+    );
   }
 
   // get color of a mask pixel
@@ -524,11 +484,8 @@ document.body.appendChild( stats.domElement );
       g 2.0,
       h 1.0
     as $flag, $value)
-      bool $flag = false;
-      if (value >= $value) {
-        value -= $value;
-        $flag = true;
-      } 
+      bool $flag = (value >= $value);
+      value -= min(float($flag) * 256.0, $value);
     endforeach
     if (coordinates.x < 1.0 / 3.0 && coordinates.y < 1.0 / 3.0) {
       vec4 corner = getBestCorner(pos, variation, vec2(-1, -1), vec2(-1, 0), vec2(0, -1), c, b, d);
@@ -580,7 +537,7 @@ document.body.appendChild( stats.domElement );
     float variation = getRandom(getPosition(shift), 4.0, 1.0);
     vec2 terrain = vec2(variation, location.r - 1.0);
     if (transition.r > 0.0) {
-      vec2 mask = vec2(getMask(transition.r), 1);
+      vec2 mask = vec2(getMask(transition.r, true), 1);
       vec4 masked = getTransitionedColor(locals, mask, here, translate);
       if (masked.a == 0.0) {
         vec4 corner = getCorner(locals, shift, translate, transition.r);
@@ -594,7 +551,7 @@ document.body.appendChild( stats.domElement );
   vec4 getOverlayColor(vec2 locals, vec2 shift, vec4 location, vec4 transition) {
     vec2 translate = vec2(0,0);
     if (transition.b > 0.0) {
-      vec2 mask = vec2(getMask(transition.b), 0);
+      vec2 mask = vec2(getMask(transition.b, true), 0);
       vec4 masked = getTransitionedColor(locals, mask, vec2(0, 0), translate);
       if (!(masked.r == 0.0 && masked.g == 0.0 && masked.b == 0.0 && masked.a == 1.0))
         return masked;
@@ -624,9 +581,6 @@ document.body.appendChild( stats.domElement );
   }
 
   vec4 blend(vec4 overlay, vec4 color) {
-    if (overlay.a == 1.0 || color.a == 0.0)
-      return overlay;
-
     overlay.rgb *= overlay.a;
     color.rgb *= color.a;
     vec3 blended = overlay.rgb + ((1.0-overlay.a)*color.rgb);
@@ -635,16 +589,11 @@ document.body.appendChild( stats.domElement );
   }
 
   vec4 blend(vec4 overlay, vec4 color, float a, float b) {
-    if (a > b) {
-      vec4 buffer = overlay;
-      overlay = color;
-      color = buffer;
-    }
-    return blend(overlay, color);
+    return a > b ? blend(color, overlay) : blend(overlay, color);
   }
 
   float getZIndex(float index, vec2 shift) {
-    float height = floor(index / 2.0);
+    float height = floor(index);
     vec2 pos = floor(tile * mapSize) + shift + height;
     return pos.y * mapSize + pos.x + height / 255.0;
   }
@@ -707,13 +656,8 @@ document.body.appendChild( stats.domElement );
         float index = getZIndex(object.a, subshift);
         if (color.a < 1.0 || index > z) {
           vec4 result = getObjectColor(object, locals, subshift);
-          if (color.a < 1.0 && subobjected == 1) {
+          if (color.a < 1.0) {
             vec4 subobject = get(subobjects, subshift);
-            if (subobject.r > 0.0) {
-              if (color.a == 0.0)
-                index = getZIndex(subobject.a, subshift);
-              result = blend(result, getObjectColor(subobject, locals, subshift));
-            }
           }
           if (result.a > 0.0) {
             color = blend(color, result, index, z);
@@ -734,11 +678,8 @@ document.body.appendChild( stats.domElement );
       g 2.0,
       h 1.0
     as $flag, $value)
-      bool $flag = false;
-      if (value >= $value) {
-        value -= $value;
-        $flag = true;
-      } 
+      bool $flag = (value >= $value);
+      value -= min(float($flag) * 256.0, $value);
     endforeach
 
     // check if pixel is occluded by surrounding subterrain
@@ -754,13 +695,25 @@ document.body.appendChild( stats.domElement );
         vec2 subshift = vec2($x, $y);  
         vec4 origin = get(terrain, subshift);
         float index = getZIndex(origin.a, subshift);
+        float rest = mod(origin.a * 255.0, 2.0);
         if (color.a < 1.0 || index > z) {
-          vec2 position = vec2(getRandom(getPosition(shift + subshift), 4.0, 1.0), 0);
-          vec4 result = getColor(spritesLandscape, locals, position, grid, subshift + 1.0, translate);
-          if (result.a > 0.0) {
-            color = blend(color, result, index, z);
-            z = index;
-          }
+          //if (rest == 0.0) {
+            vec2 position = vec2(getRandom(getPosition(shift + subshift), 4.0, 1.0), 0);
+            vec4 result = getColor(spritesLandscape, locals, position, grid, subshift + 1.0, translate);
+            if (result.a > 0.0) {
+              color = blend(color, result, index, z);
+              z = index;
+            } 
+          //} else {
+          //  vec4 subtransition = get(data, subshift + 1.0, 1);
+          //  float mask = getMask(subtransition.a, false);
+          //  vec2 position = vec2(mask, 1);
+          //  vec4 result = getColor(spritesLandscape, locals, position, grid, subshift +// 1.0, translate);
+          //  if (result.a > 0.0) {
+          //    color = blend(color, result, index, z);
+          //    z = index;
+          //  } 
+          //}
         }
       }
     endforeach
@@ -786,7 +739,7 @@ document.body.appendChild( stats.domElement );
       if (color.a < 1.0 || index > z) {
         // apply landscape transition mask
         if (transition.a != 0.0) {
-          float mask = getMask(transition.a);
+          float mask = getMask(transition.a, true);
           vec2 pos = vec2(mask, 5.0 + (random > 1.0 ? 1.0 : 0.0));
           transitioned = getTransitionedColor(locals, pos, vec2(0, 0), vec2(0,0));
         }
@@ -849,6 +802,8 @@ document.body.appendChild( stats.domElement );
 
 <script>
   var seed = parseFloat(location.search.split('seed=')[1]) || Math.random();
+
+  function setup() {
   var options = {
     zoom: 2,
     speed: parseFloat(location.search.split('speed=')[1]) || 2,
@@ -887,7 +842,9 @@ document.body.appendChild( stats.domElement );
   }
 
   var canvas      = document.getElementById('canvas');
-  
+  canvas.addEventListener("webglcontextlost", function(event) {
+      event.preventDefault();
+  }, false);
   var gl          = GL(canvas);
   var vertex      = GL.Script(gl, '2d-vertex-shader')
   var isoVertex   = GL.Script(gl, '2d-isometric-vertex-shader')
@@ -989,9 +946,9 @@ document.body.appendChild( stats.domElement );
         terrain.data[pos + 0] = values[0]
         terrain.data[pos + 1] = values[1]
         terrain.data[pos + 2] = values[2]
-        terrain.data[pos + 3] = values[3] + k * 2;
+        terrain.data[pos + 3] = values[3] + k;
         if (k == height && Math.random() > 0.85) {
-          generateObject(objects, pos, values[3] + k * 2);
+          generateObject(objects, pos, values[3] + k);
         }
       }
     }
@@ -1095,11 +1052,11 @@ document.body.appendChild( stats.domElement );
   var requestedAnimation;
 
   var map = generateMap()
+
   var terrainData = map.terrain;
   var subterrainData = map.subterrain;
   var overlayData = generateOverlay()
   var objectsData = map.objects;
-
   document.body.appendChild(getCanvas('terrain'));
   document.body.appendChild(getCanvas('subterrain'));
   document.body.appendChild(getCanvas('objects'));
@@ -1224,7 +1181,7 @@ document.body.appendChild( stats.domElement );
     gl.uniform1i(gl.getUniformLocation(program, 'objects'), 3);
 
     // set meta data
-    gl.uniform1i(gl.getUniformLocation(program, 'iteration'), iteration);
+    gl.uniform1i(gl.getUniformLocation(program, 'iteration'), options.zooming ? 0 : iteration);
     gl.uniform2f(gl.getUniformLocation(program, 'textureSize'), options.textureSize, options.textureSize);
     gl.uniform1f(gl.getUniformLocation(program, 'mapSize'), options.mapSize);
     gl.uniform1f(gl.getUniformLocation(program, 'tileSize'), options.tileSize);
@@ -1354,10 +1311,19 @@ document.body.appendChild( stats.domElement );
     // scale map up, to make units equal device pixels
     var ratio = (options.mapSize * options.tileSize / window.innerHeight) * options.zoom// * 1.4
     mat4.scale(matrix, matrix, [ ratio, ratio, ratio ])
+    console.error(options.zooming)
     if (options.zooming)
-      mat4.scale(matrix, matrix, [ 1 - scroll / 400, 1 - scroll / 400, 1 - scroll / 400])
+      mat4.scale(matrix, matrix, [ 1 - scroll / 800, 1 - scroll / 800, 1 - scroll / 800])
     return matrix
   }
 
+  }
+
+  window.onload = function() {
+
+  console.profile(1);
+    setup();
+  console.profileEnd(1);
+}
 </script>
 

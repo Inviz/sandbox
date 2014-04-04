@@ -1,7 +1,7 @@
 !function() {
 var style = document.createElement('style');
 style.appendChild(document.createTextNode('\
-canvas {\
+canvas, img {\
     image-rendering: optimizeSpeed;             // Older versions of FF\
     image-rendering: -moz-crisp-edges;          // FF 6.0+\
     image-rendering: -webkit-optimize-contrast; // Webkit\

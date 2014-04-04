@@ -23,7 +23,6 @@ Game.Object = function(object) {
 
 Game.Object.Quest = Game.Quest;
 Game.Object.Action = Game.Action;
-Game.Object.Value = Game.Value;
 
 Game.Object.inspect = function(object) {
   return object.map(function(property) {

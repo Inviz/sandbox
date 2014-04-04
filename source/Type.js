@@ -156,8 +156,10 @@ Game.Type.Properties = function(reference) {
 
 
 Game = new Type(null, 0);
+Game[0] = Game;
 Game.merge('location', {})
 Game.merge('path', {})
+
 return Game;
 
 })()

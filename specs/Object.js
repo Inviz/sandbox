@@ -60,7 +60,7 @@ describe("Game.Object.Value", function() {
       expect(Game.Object.Value.sum(object, 'age', Game.Reference('object', 123))).toBe(21)
       
       var log = [];
-      expect(Game.Object.Value(object, 'age', function(object, type, value, reference) {
+      expect(Game.Object.Value.sum(object, 'age', function(object, type, value, reference) {
         log.push([object, type, value, reference])
       })).toBe(22)
       expect(log).toEqual([
@@ -69,7 +69,7 @@ describe("Game.Object.Value", function() {
       ]);
 
       var log = [];
-      expect(Game.Object.Value(object, 'personal', Game.Reference('object', 123), function(object, type, value, reference) {
+      expect(Game.Object.Value.sum(object, 'personal', Game.Reference('object', 123), function(object, type, value, reference) {
         log.push([object, type, value, reference])
       })).toBe(21)
       expect(log).toEqual([
